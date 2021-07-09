@@ -6,11 +6,236 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+
+    <fragment android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/map"
+        android:name="com.naver.maps.map.MapFragment" />
+
+
     <Button
         android:id="@+id/button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Button"
-        tools:layout_editor_absoluteX="127dp"
-        tools:layout_editor_absoluteY="306dp" />
+        android:text="Connect"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+
+    <Button
+        android:id="@+id/armButton"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:onClick="onArmButtonTap"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="#ffa159"
+        android:gravity="center"
+        android:text="ARM"
+        android:textColor="#ffffff"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+
+    <Button
+        android:id="@+id/altitudeButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="#6e4d43"
+        android:gravity="center"
+        android:text=""
+        android:textColor="#ffffff"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.9"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.105" />
+
+    <Button
+        android:id="@+id/upAltitudeButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="#6e4d43"
+        android:gravity="center"
+        android:text="+0.5"
+        android:textColor="#ffffff"
+        android:textSize="20dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.9"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.261" />
+
+    <Button
+        android:id="@+id/downAltitudeButton"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:background="#6e4d43"
+        android:gravity="center"
+        android:text="-0.5"
+        android:textColor="#ffffff"
+        android:textSize="20dp"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.9"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.418" />
+
+    <TableRow
+        android:id="@+id/vehTelemRow2"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:background="#7f000000"
+        tools:ignore="MissingConstraints">
+
+
+        <TextView
+            android:id="@+id/batteryLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:text="전압 "
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textColor="#ffffff" />
+
+        <TextView
+            android:id="@+id/batteryValueTextView"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:layout_column="1"
+            android:layout_gravity="left"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text="0V"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/vehicleModeLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:paddingBottom="5dp"
+            android:paddingTop="5dp"
+            android:textColor="#ffffff"
+            android:text="비행모드 "
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/vehicleModeLabelWriteTextView"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_column="1"
+            android:layout_gravity="left"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text=""
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+
+        <TextView
+            android:id="@+id/altitudeLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text="고도 "
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/altitudeValueTextView"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:layout_column="1"
+            android:layout_gravity="left"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text="0m"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/speedLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text="속도 "
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/speedValueTextView"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:layout_column="1"
+            android:layout_gravity="left"
+            android:paddingBottom="5dp"
+            android:paddingTop="5dp"
+            android:textColor="#ffffff"
+            android:text="0m/s"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+
+        <TextView
+            android:id="@+id/yawLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text="YAW "
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/yawValueTextView"
+            android:layout_width="90dp"
+            android:layout_height="wrap_content"
+            android:layout_column="1"
+            android:layout_gravity="left"
+            android:paddingBottom="5dp"
+            android:paddingTop="5dp"
+            android:textColor="#ffffff"
+            android:text="0deg"
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+
+
+        <TextView
+            android:id="@+id/gpsCountLabelTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_column="0"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:textColor="#ffffff"
+            android:text="위성 "
+            android:textAppearance="?android:attr/textAppearanceMedium" />
+
+        <TextView
+            android:id="@+id/gpsCountValueTextView"
+            android:layout_width="70dp"
+            android:layout_height="wrap_content"
+            android:layout_column="1"
+            android:layout_gravity="left"
+            android:paddingTop="5dp"
+            android:paddingBottom="5dp"
+            android:text="0"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textColor="#ffffff" />
+
+    </TableRow>
+
+
 </android.support.constraint.ConstraintLayout>
