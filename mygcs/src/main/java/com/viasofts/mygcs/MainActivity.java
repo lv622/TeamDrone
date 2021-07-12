@@ -3,6 +3,8 @@ package com.viasofts.mygcs;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
+import android.graphics.Color;
+import android.graphics.PointF;
 import android.graphics.SurfaceTexture;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -28,6 +30,7 @@ import com.naver.maps.map.LocationTrackingMode;
 import com.naver.maps.map.MapFragment;
 import com.naver.maps.map.NaverMap;
 import com.naver.maps.map.OnMapReadyCallback;
+import com.naver.maps.map.UiSettings;
 import com.naver.maps.map.overlay.LocationOverlay;
 import com.naver.maps.map.overlay.Marker;
 import com.naver.maps.map.overlay.OverlayImage;
@@ -58,6 +61,8 @@ import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.gcs.link.LinkConnectionStatus;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
 import com.o3dr.services.android.lib.model.SimpleCommandListener;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.text.AttributedCharacterIterator;
 
@@ -93,6 +98,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private double droneAltitude = 5.5;
     private String altitudeText = "";
     //private Spinner modeSelector;
+
+    private Marker guideMarker = new Marker();
+    private LatLng guideLatLng;
 
     private NaverMap mNaverMap;
 
@@ -396,6 +404,124 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         naverMap.setLocationTrackingMode(LocationTrackingMode.Follow);
 
 
+
+
+        mNaverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(@NonNull @NotNull PointF pointF, @NonNull @NotNull LatLng latLng) {
+
+
+                guideLatLng = latLng;
+
+                State checkVehicleState = drone.getAttribute(AttributeType.STATE);
+                VehicleMode checkVehicleMode = checkVehicleState.getVehicleMode();
+
+                // 가이드 모드인 경우 위치만 변경해서 이동시킴
+                if(checkVehicleMode == VehicleMode.COPTER_GUIDED)
+                {
+                    guideMarker.setMap(null);
+                    guideMarker.setIconTintColor(Color.YELLOW);
+                    guideMarker.setPosition(guideLatLng);
+                    guideMarker.setWidth(30);
+                    guideMarker.setHeight(30);
+                    guideMarker.setMap(mNaverMap);
+
+                    goToSelectedPlace();
+                }
+                else {
+                    AlertDialog.Builder guidedDialog = new AlertDialog.Builder(MainActivity.this);
+                    guidedDialog.setTitle(null);
+                    guidedDialog.setMessage("현재고도를 유지하며 목표지점까지 기체가 이동합니다.");
+                    guidedDialog.setPositiveButton("확인", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            guideMarker.setMap(null);
+                            guideMarker.setIconTintColor(Color.YELLOW);
+                            guideMarker.setPosition(guideLatLng);
+                            guideMarker.setWidth(30);
+                            guideMarker.setHeight(30);
+                            guideMarker.setMap(mNaverMap);
+
+
+                            changeToGuided();
+                            goToSelectedPlace();
+
+                        }
+                    });
+                    guidedDialog.setNegativeButton("취소", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    });
+
+                    guidedDialog.show();
+                }
+
+            }
+        });
+
+    }
+
+
+
+    // 롱클릭된 좌표로 드론 이동시키기
+    private void goToSelectedPlace() {
+
+        ControlApi.getApi(this.drone).goTo(new LatLong(guideMarker.getPosition().latitude, guideMarker.getPosition().longitude),
+                true, new AbstractCommandListener() {
+                    @Override
+                    public void onSuccess() {
+                        alertUser("목적지로 이동합니다.");
+                    }
+
+                    @Override
+                    public void onError(int executionError) {
+                        alertUser("목적지로 이동할 수 없습니다.");
+                    }
+
+                    @Override
+                    public void onTimeout() {
+                        alertUser("시간이 초과되어 취소합니다.");
+                    }
+                });
+
+    }
+
+    // 가이드 모드로 변경하기
+    private void changeToGuided() {
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_GUIDED, new SimpleCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("가이드 모드로 변경합니다.");
+            }
+            @Override
+            public void onError(int executionError) {
+                alertUser("모드 변경을 할 수 없습니다.");
+            }
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
+
+    // 로이터 모드로 변경하기
+    private void changeToLoitor() {
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LOITER, new SimpleCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("로이터 모드로 변경합니다.");
+            }
+            @Override
+            public void onError(int executionError) {
+                alertUser("모드 변경을 할 수 없습니다.");
+            }
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
     }
 
 
@@ -477,18 +603,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
             armingDialog.show();
 
-            // 경고창 테스트를 위한 코드 주석 처리
-//            VehicleApi.getApi(this.drone).arm(true, false, new SimpleCommandListener() {
-//                @Override
-//                public void onError(int executionError) {
-//                    alertUser("Unable to arm vehicle.");
-//                }
-//
-//                @Override
-//                public void onTimeout() {
-//                    alertUser("Arming operation timed out.");
-//                }
-//            });
         }
     }
 
@@ -585,6 +699,14 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         else if(vehicleMode == VehicleMode.COPTER_LOITER)
         {
             vehicleModeTextView.setText("LOITER");
+        }
+        else if(vehicleMode == vehicleMode.COPTER_GUIDED)
+        {
+            vehicleModeTextView.setText("GUIDED");
+        }
+        else if(vehicleMode == vehicleMode.COPTER_ALT_HOLD)
+        {
+            vehicleModeTextView.setText("ALT-HOLD");
         }
         else{
             vehicleModeTextView.setText("UNKNOWN");
