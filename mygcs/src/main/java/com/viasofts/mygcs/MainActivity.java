@@ -34,6 +34,7 @@ import com.naver.maps.map.UiSettings;
 import com.naver.maps.map.overlay.LocationOverlay;
 import com.naver.maps.map.overlay.Marker;
 import com.naver.maps.map.overlay.OverlayImage;
+import com.naver.maps.map.overlay.PolylineOverlay;
 import com.naver.maps.map.util.FusedLocationSource;
 import com.o3dr.android.client.ControlTower;
 import com.o3dr.android.client.Drone;
@@ -54,6 +55,7 @@ import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Battery;
 import com.o3dr.services.android.lib.drone.property.Gps;
+import com.o3dr.services.android.lib.drone.property.GuidedState;
 import com.o3dr.services.android.lib.drone.property.Speed;
 import com.o3dr.services.android.lib.drone.property.State;
 import com.o3dr.services.android.lib.drone.property.Type;
@@ -65,6 +67,7 @@ import com.o3dr.services.android.lib.model.SimpleCommandListener;
 import org.jetbrains.annotations.NotNull;
 
 import java.text.AttributedCharacterIterator;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements DroneListener, TowerListener, LinkListener, OnMapReadyCallback {
 
@@ -87,10 +90,16 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button altitudeButton;
     private Button upAltitude;
     private Button downAltitude;
+    private ArrayList<LatLng> guideLatLngArr = new ArrayList<>(); // 비행경로를 그릴 좌표계 배열
+    private Button mapButton;
+    private Button normalMap;
+    private Button geoMap;
+    private Button satelliteMap;
 
 
     private Boolean flag = false;
     private Boolean altitudeFlag = false;
+    private Boolean mapFlag = false;
     // test_start
     private int count = 0;
     private  Marker droneMarker = new Marker();
@@ -101,6 +110,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     private Marker guideMarker = new Marker();
     private LatLng guideLatLng;
+    private int guideCount = 0;
+
+    private PolylineOverlay polyline = new PolylineOverlay();
 
     private NaverMap mNaverMap;
 
@@ -201,6 +213,21 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     droneAltitude -= 0.5;
                     altitudeText = droneAltitude + "m 이륙고도";
                     altitudeButton.setText(altitudeText);
+                }
+            }
+        });
+
+        mapButton = (Button) findViewById(R.id.mapTypeButton);
+        normalMap = (Button) findViewById(R.id.normalMapButton);
+        geoMap = (Button) findViewById(R.id.geoMapButton);
+        satelliteMap = (Button) findViewById(R.id.satelliteMapButton);
+
+        // 여기까지
+        mapButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(mapFlag == false) {
+                    normalMap.setVisibility(View.VISIBLE);
                 }
             }
         });
@@ -334,6 +361,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
             case AttributeEvent.GPS_POSITION:
                 updateGpsPosition();
+                if(guideCount > 0) {
+                    if(checkGoal() == true) {
+                        guideCount = 0;
+                        changeToLoitor();
+                    }
+                }
                 break;
 
             case AttributeEvent.HOME_UPDATED:
@@ -427,6 +460,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     guideMarker.setMap(mNaverMap);
 
                     goToSelectedPlace();
+
                 }
                 else {
                     AlertDialog.Builder guidedDialog = new AlertDialog.Builder(MainActivity.this);
@@ -473,6 +507,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     @Override
                     public void onSuccess() {
                         alertUser("목적지로 이동합니다.");
+                        guideCount++;
                     }
 
                     @Override
@@ -524,6 +559,13 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         });
     }
 
+
+    // 목적지 도착한 것인지 확인하기
+    private boolean checkGoal() {
+        GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
+        LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(), guidedState.getCoordinate().getLongitude());
+        return target.distanceTo(guideLatLng) <= 1; // 확실하지 않음
+    }
 
     // 모터 가동 입력 시, 모터 가동 구현
     public void onArmButtonTap(View view) {
@@ -773,13 +815,21 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             droneMarker.setMap(null);
         }
 
-        droneMarker.setIcon(OverlayImage.fromResource(R.drawable.drone_icon));
-        // droneMarker.setIcon(OverlayImage.fromResource(R.drawable.)); 아이콘 만들어서 사용할 필요가 있음
-       // droneMarker.setHeight(50);
-       // droneMarker.setWidth(50);
+        droneMarker.setIcon(OverlayImage.fromResource(R.drawable.drone_icon)); // 지시 점선 넣을 필요가 있음
+        droneMarker.setHeight(35);
+        droneMarker.setWidth(35);
         droneMarker.setPosition(new LatLng(position.getLatitude(), position.getLongitude()));
         droneMarker.setAngle((float)droneYaw);
         droneMarker.setMap(mNaverMap);
+
+        // 비행경로 폴리라인 그리기
+        guideLatLngArr.add(count, new LatLng(position.getLatitude(), position.getLongitude()));
+        polyline.setCoords(guideLatLngArr);
+        polyline.setWidth(10);
+        polyline.setColor(Color.WHITE);
+        polyline.setCapType(PolylineOverlay.LineCap.Round);
+        polyline.setJoinType(PolylineOverlay.LineJoin.Round);
+        polyline.setMap(mNaverMap);
 
         count++;
     }
