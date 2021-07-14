@@ -92,7 +92,7 @@
         android:layout_height="50dp"
         android:background="#ffa159"
         android:gravity="center"
-        android:text=""
+        android:text="위성지도"
         android:textColor="#ffffff"
         android:textSize="18dp"
         app:layout_constraintBottom_toBottomOf="@+id/map"
@@ -107,7 +107,7 @@
         android:id="@+id/normalMapButton"
         android:layout_width="80dp"
         android:layout_height="50dp"
-        android:background="#ffa159"
+        android:background="#6e4d43"
         android:gravity="center"
         android:text="일반지도"
         android:textColor="#ffffff"
@@ -117,7 +117,7 @@
         app:layout_constraintHorizontal_bias="0.700"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.800" />
+        app:layout_constraintVertical_bias="0.850" />
 
     <Button
         android:id="@+id/geoMapButton"
@@ -133,13 +133,13 @@
         app:layout_constraintHorizontal_bias="0.700"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.650" />
+        app:layout_constraintVertical_bias="0.750" />
 
     <Button
         android:id="@+id/satelliteMapButton"
         android:layout_width="80dp"
         android:layout_height="50dp"
-        android:background="#6e4d43"
+        android:background="#ffa159"
         android:gravity="center"
         android:text="위성지도"
         android:textColor="#ffffff"
@@ -149,7 +149,72 @@
         app:layout_constraintHorizontal_bias="0.700"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.500" />
+        app:layout_constraintVertical_bias="0.650" />
+
+
+    <Button
+        android:id="@+id/lockTypeButton"
+        android:layout_width="80dp"
+        android:layout_height="50dp"
+        android:background="#ffa159"
+        android:gravity="center"
+        android:text="맵 이동"
+        android:textColor="#ffffff"
+        android:textSize="18dp"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.600"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.950" />
+
+    <Button
+        android:id="@+id/lockOnButton"
+        android:layout_width="80dp"
+        android:layout_height="50dp"
+        android:background="#6e4d43"
+        android:gravity="center"
+        android:text="맵 잠금"
+        android:textColor="#ffffff"
+        android:textSize="18dp"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.600"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.850" />
+
+    <Button
+        android:id="@+id/lockOffButton"
+        android:layout_width="80dp"
+        android:layout_height="50dp"
+        android:background="#ffa159"
+        android:gravity="center"
+        android:text="맵 이동"
+        android:textColor="#ffffff"
+        android:textSize="18dp"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.600"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.750" />
+
+    <Button
+        android:id="@+id/geoTypeButton"
+        android:layout_width="80dp"
+        android:layout_height="50dp"
+        android:background="#6e4d43"
+        android:gravity="center"
+        android:text="지적도Off"
+        android:textColor="#ffffff"
+        android:textSize="16dp"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.800"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.950" />
 
 
     <TableRow

@@ -96,10 +96,18 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button geoMap;
     private Button satelliteMap;
 
+    private Button lockButton;
+    private Button lockOnButton;
+    private Button lockOffButton;
+
+    private Button geoTypeButton;
+
 
     private Boolean flag = false;
     private Boolean altitudeFlag = false;
     private Boolean mapFlag = false;
+    private Boolean lockFlag = false;
+    private Boolean geoFlag = false;
     // test_start
     private int count = 0;
     private  Marker droneMarker = new Marker();
@@ -166,7 +174,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     drone.disconnect();
                     flag = false;
                     // 추가 부분
+
+                    polyline.setMap(null);
+                    guideLatLngArr.clear();
                     count = 0;
+
                 }
             }
         });
@@ -217,20 +229,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             }
         });
 
-        mapButton = (Button) findViewById(R.id.mapTypeButton);
-        normalMap = (Button) findViewById(R.id.normalMapButton);
-        geoMap = (Button) findViewById(R.id.geoMapButton);
-        satelliteMap = (Button) findViewById(R.id.satelliteMapButton);
 
-        // 여기까지
-        mapButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(mapFlag == false) {
-                    normalMap.setVisibility(View.VISIBLE);
-                }
-            }
-        });
 
 /*
         this.modeSelector = (Spinner) findViewById(R.id.modeSelect);
@@ -436,8 +435,136 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         locationOverlay.setVisible(true);
         naverMap.setLocationTrackingMode(LocationTrackingMode.Follow);
 
+        // 줌 버튼 제거
+        final UiSettings uiSettings = naverMap.getUiSettings();
+        uiSettings.setZoomControlEnabled(false);
+
+        mapButton = (Button) findViewById(R.id.mapTypeButton);
+        normalMap = (Button) findViewById(R.id.normalMapButton);
+        geoMap = (Button) findViewById(R.id.geoMapButton);
+        satelliteMap = (Button) findViewById(R.id.satelliteMapButton);
+
+        // 지도 유형 변경하기
+        mapButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(mapFlag == false) {
+                    normalMap.setVisibility(View.VISIBLE);
+                    geoMap.setVisibility(View.VISIBLE);
+                    satelliteMap.setVisibility(View.VISIBLE);
+                    mapFlag = true;
+                }
+                else {
+                    normalMap.setVisibility(View.INVISIBLE);
+                    geoMap.setVisibility(View.INVISIBLE);
+                    satelliteMap.setVisibility(View.INVISIBLE);
+                    mapFlag = false;
+                }
+            }
+        });
+
+        normalMap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                mNaverMap.setMapType(NaverMap.MapType.Basic);
+                normalMap.setBackgroundColor(0xffffa159);
+                geoMap.setBackgroundColor(0xff6e4d43);
+                satelliteMap.setBackgroundColor(0xff6e4d43);
+                mapButton.setText("일반지도");
+
+            }
+        });
 
 
+        geoMap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mNaverMap.setMapType(NaverMap.MapType.Terrain);
+                normalMap.setBackgroundColor(0xff6e4d43);
+                geoMap.setBackgroundColor(0xffffa159);
+                satelliteMap.setBackgroundColor(0xff6e4d43);
+                mapButton.setText("지형도");
+
+
+            }
+        });
+
+        satelliteMap.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mNaverMap.setMapType(NaverMap.MapType.Satellite);
+                normalMap.setBackgroundColor(0xff6e4d43);
+                geoMap.setBackgroundColor(0xff6e4d43);
+                satelliteMap.setBackgroundColor(0xffffa159);
+                mapButton.setText("위성지도");
+
+            }
+        });
+
+
+        // 멥 이동 잠금 버튼 기능
+        lockButton = (Button) findViewById(R.id.lockTypeButton);
+        lockOnButton = (Button) findViewById(R.id.lockOnButton);
+        lockOffButton = (Button) findViewById(R.id.lockOffButton);
+
+
+        lockButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(lockFlag == false) {
+                    lockOnButton.setVisibility(View.VISIBLE);
+                    lockOffButton.setVisibility(View.VISIBLE);
+                    lockFlag = true;
+                }
+                else {
+                    lockOnButton.setVisibility(View.INVISIBLE);
+                    lockOffButton.setVisibility(View.INVISIBLE);
+                    lockFlag = false;
+                }
+            }
+        });
+
+        // 잠금 버튼 누를 시 드론 좌표로 카메라 이동 필요
+        lockOnButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                uiSettings.setScrollGesturesEnabled(false);
+                lockOnButton.setBackgroundColor(0xffffa159);
+                lockOffButton.setBackgroundColor(0xff6e4d43);
+                lockButton.setText("맵 잠금");
+            }
+        });
+
+        lockOffButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                uiSettings.setScrollGesturesEnabled(true);
+                lockOnButton.setBackgroundColor(0xff6e4d43);
+                lockOffButton.setBackgroundColor(0xffffa159);
+                lockButton.setText("맵 이동");
+            }
+        });
+
+        // 지적도 온오프 버튼
+        geoTypeButton = (Button) findViewById(R.id.geoTypeButton);
+
+        geoTypeButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(geoFlag == false) {
+                    geoTypeButton.setBackgroundColor(0xff6e4d43);
+                    geoTypeButton.setText("지적도Off");
+                    mNaverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_CADASTRAL, false);
+                    geoFlag = true;
+                } else {
+                    geoTypeButton.setBackgroundColor(0xffffa159);
+                    geoTypeButton.setText("지적도On");
+                    mNaverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_CADASTRAL, true);
+                    geoFlag = false;
+                }
+            }
+        });
 
         mNaverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
             @Override
