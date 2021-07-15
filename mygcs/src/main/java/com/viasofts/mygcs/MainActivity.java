@@ -103,6 +103,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button geoTypeButton;
 
 
+    //recycler test_start
+    private ArrayList<String> messageArr = new ArrayList<>(); // 메시지 담을 배열
+    //recycler test_end
+
     private Boolean flag = false;
     private Boolean altitudeFlag = false;
     private Boolean mapFlag = false;
@@ -935,7 +939,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         }
 
 
-        Log.d("test_position", String.format("위도: %f, 경도: %f", position.getLatitude(), position.getLongitude()));
 
         if(count > 0)
         {
@@ -960,6 +963,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         count++;
     }
+
+
+    //recycler view test
+
 
 
 }
