@@ -14,10 +14,14 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -137,6 +141,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // 리사이클러뷰 처리
+
+
 
         // 타이틀 바 제거 및 가로 모드
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
@@ -252,6 +259,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         // gcs 위치 받아오기
         locationSource = new FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE);
+
+
+
 
 
         mainHandler = new Handler(getApplicationContext().getMainLooper());
@@ -848,7 +858,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         TextView voltageTextView = (TextView) findViewById(R.id.batteryValueTextView);
         Battery droneBattery = this.drone.getAttribute(AttributeType.BATTERY);
         voltageTextView.setText(String.format("%3.1f", droneBattery.getBatteryVoltage()) + "V");
-        Log.d("test_vol", String.format("%3.1f", droneBattery.getBatteryVoltage()));
+        Log.d("test_vol", String.format("%f", droneBattery.getBatteryVoltage()));
     }
 
 
@@ -966,6 +976,44 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
 
     //recycler view test
+    private class adapter extends RecyclerView.Adapter<adapter.Holder> {
+
+
+        private class Holder extends RecyclerView.ViewHolder {
+
+            public TextView textView;
+
+            public Holder(View view) {
+                super(view);
+                this.textView = view.findViewById(R.id.recycler_view_item);
+            }
+        }
+
+        @NonNull
+        @Override
+        public Holder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
+            Context context = viewGroup.getContext();
+
+            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+            View view = inflater.inflate(R.layout.main_item_list, viewGroup, false);
+            adapter.Holder viewHolder = new adapter.Holder(view);
+
+            return viewHolder;
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull Holder holder, int i) {
+            String text = messageArr.get(i);
+            holder.textView.setText(text);
+        }
+
+        @Override
+        public int getItemCount() {
+            return messageArr.size();
+        }
+    }
+
 
 
 
