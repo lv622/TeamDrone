@@ -14,6 +14,8 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.GridLayoutManager;
+import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -119,6 +121,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     // test_start
     private int count = 0;
     private  Marker droneMarker = new Marker();
+    private  Marker lineMarker = new Marker();
     // test_end
     private double droneAltitude = 5.5;
     private String altitudeText = "";
@@ -206,14 +209,14 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         altitudeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (altitudeFlag == false) {
+                if (altitudeFlag == true) {
                     upAltitude.setVisibility(View.VISIBLE);
                     downAltitude.setVisibility(View.VISIBLE);
-                    altitudeFlag = true;
+                    altitudeFlag = false;
                 } else {
                     upAltitude.setVisibility(View.INVISIBLE);
                     downAltitude.setVisibility(View.INVISIBLE);
-                    altitudeFlag = false;
+                    altitudeFlag = true;
                 }
             }
         });
@@ -225,6 +228,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     droneAltitude += 0.5;
                     altitudeText = droneAltitude + "m 이륙고도";
                     altitudeButton.setText(altitudeText);
+                    // test 메시지 창
+                    alertUser("0.5m 증가!");
                 }
             }
         });
@@ -236,6 +241,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     droneAltitude -= 0.5;
                     altitudeText = droneAltitude + "m 이륙고도";
                     altitudeButton.setText(altitudeText);
+                    // test 메시지 창
+                    alertUser("0.5m 감소!");
                 }
             }
         });
@@ -430,6 +437,23 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     protected void alertUser(String message) {
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
         Log.d(TAG, message);
+
+        messageArr.add(String.format("★ " + message));
+        for(int i = 0; i < 5; i++) {
+            messageArr.add(String.format("test %d", i));
+        }
+
+
+        RecyclerView recyclerView = findViewById(R.id.recycler_view);
+
+
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setHasFixedSize(true);
+
+        SimpleTextAdapter adapter = new SimpleTextAdapter(messageArr);
+        recyclerView.setAdapter(adapter);
+
+
     }
 
     private void runOnMainThread(Runnable runnable) {
@@ -462,17 +486,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         mapButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(mapFlag == false) {
+                if(mapFlag == true) {
                     normalMap.setVisibility(View.VISIBLE);
                     geoMap.setVisibility(View.VISIBLE);
                     satelliteMap.setVisibility(View.VISIBLE);
-                    mapFlag = true;
+                    mapFlag = false;
                 }
                 else {
                     normalMap.setVisibility(View.INVISIBLE);
                     geoMap.setVisibility(View.INVISIBLE);
                     satelliteMap.setVisibility(View.INVISIBLE);
-                    mapFlag = false;
+                    mapFlag = true;
                 }
             }
         });
@@ -526,15 +550,15 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         lockButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(lockFlag == false) {
+                if(lockFlag == true) {
                     lockOnButton.setVisibility(View.VISIBLE);
                     lockOffButton.setVisibility(View.VISIBLE);
-                    lockFlag = true;
+                    lockFlag = false;
                 }
                 else {
                     lockOnButton.setVisibility(View.INVISIBLE);
                     lockOffButton.setVisibility(View.INVISIBLE);
-                    lockFlag = false;
+                    lockFlag = true;
                 }
             }
         });
@@ -953,8 +977,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         if(count > 0)
         {
             droneMarker.setMap(null);
+            lineMarker.setMap(null);
         }
 
+        // 방향 표시선 그리기
+        lineMarker.setIcon(OverlayImage.fromResource(R.drawable.green_dash_line));
+        lineMarker.setPosition(new LatLng(position.getLatitude(), position.getLongitude()));
+        lineMarker.setAngle((float)droneYaw);
+        lineMarker.setHeight(35);
+        lineMarker.setMap(mNaverMap);
+
+        // 드론 아이콘 그리기
         droneMarker.setIcon(OverlayImage.fromResource(R.drawable.drone_icon)); // 지시 점선 넣을 필요가 있음
         droneMarker.setHeight(35);
         droneMarker.setWidth(35);
@@ -962,10 +995,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         droneMarker.setAngle((float)droneYaw);
         droneMarker.setMap(mNaverMap);
 
+
         // 비행경로 폴리라인 그리기
         guideLatLngArr.add(count, new LatLng(position.getLatitude(), position.getLongitude()));
         polyline.setCoords(guideLatLngArr);
-        polyline.setWidth(10);
+        polyline.setWidth(5);
         polyline.setColor(Color.WHITE);
         polyline.setCapType(PolylineOverlay.LineCap.Round);
         polyline.setJoinType(PolylineOverlay.LineJoin.Round);
@@ -973,48 +1007,5 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         count++;
     }
-
-
-    //recycler view test
-    private class adapter extends RecyclerView.Adapter<adapter.Holder> {
-
-
-        private class Holder extends RecyclerView.ViewHolder {
-
-            public TextView textView;
-
-            public Holder(View view) {
-                super(view);
-                this.textView = view.findViewById(R.id.recycler_view_item);
-            }
-        }
-
-        @NonNull
-        @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
-            Context context = viewGroup.getContext();
-
-            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-
-            View view = inflater.inflate(R.layout.main_item_list, viewGroup, false);
-            adapter.Holder viewHolder = new adapter.Holder(view);
-
-            return viewHolder;
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull Holder holder, int i) {
-            String text = messageArr.get(i);
-            holder.textView.setText(text);
-        }
-
-        @Override
-        public int getItemCount() {
-            return messageArr.size();
-        }
-    }
-
-
-
 
 }
