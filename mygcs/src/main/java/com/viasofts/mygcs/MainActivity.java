@@ -92,6 +92,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private static final int DEFAULT_USB_BAUD_RATE = 57600;
 
 
+
+
+
     private Button button;
     private Button altitudeButton;
     private Button upAltitude;
@@ -247,6 +250,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             }
         });
 
+
+
+        // test
+        recyclerTest();
 
 
 /*
@@ -436,14 +443,25 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     protected void alertUser(String message) {
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
-        Log.d(TAG, message);
+        Log.d("TAG", message);
 
         messageArr.add(String.format("★ " + message));
-        for(int i = 0; i < 5; i++) {
-            messageArr.add(String.format("test %d", i));
-        }
 
 
+        recyclerTest();
+//        recyclerView = findViewById(R.id.recycler_view);
+//
+//
+//        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+//        recyclerView.setHasFixedSize(true);
+//
+//        SimpleTextAdapter adapter = new SimpleTextAdapter(messageArr);
+//        recyclerView.setAdapter(adapter);
+
+
+    }
+
+    public void recyclerTest() {
         RecyclerView recyclerView = findViewById(R.id.recycler_view);
 
 
@@ -452,8 +470,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         SimpleTextAdapter adapter = new SimpleTextAdapter(messageArr);
         recyclerView.setAdapter(adapter);
-
-
     }
 
     private void runOnMainThread(Runnable runnable) {
@@ -472,6 +488,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         LocationOverlay locationOverlay = naverMap.getLocationOverlay();
         locationOverlay.setVisible(true);
         naverMap.setLocationTrackingMode(LocationTrackingMode.Follow);
+
 
         // 줌 버튼 제거
         final UiSettings uiSettings = naverMap.getUiSettings();
@@ -590,16 +607,16 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         geoTypeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(geoFlag == false) {
+                if(geoFlag == true) {
                     geoTypeButton.setBackgroundColor(0xff6e4d43);
                     geoTypeButton.setText("지적도Off");
                     mNaverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_CADASTRAL, false);
-                    geoFlag = true;
+                    geoFlag = false;
                 } else {
                     geoTypeButton.setBackgroundColor(0xffffa159);
                     geoTypeButton.setText("지적도On");
                     mNaverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_CADASTRAL, true);
-                    geoFlag = false;
+                    geoFlag = true;
                 }
             }
         });

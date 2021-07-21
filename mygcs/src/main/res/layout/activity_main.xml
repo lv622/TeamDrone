@@ -6,22 +6,22 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <android.support.v7.widget.RecyclerView
-        android:layout_width="300dp"
-        android:layout_height="match_parent"
-        android:id="@+id/recycler_view"
-        android:scrollbars="vertical"
-        android:background="#7f1290ff"
-        app:layout_constraintTop_toBottomOf="@id/vehTelemRow2"
-        app:layout_constraintLeft_toLeftOf="parent" />
-
-
 
     <fragment
         android:id="@+id/map"
         android:name="com.naver.maps.map.MapFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/recycler_view"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_marginTop="33dp"
+        android:layout_marginLeft="10dp"
+        android:scrollbars="vertical"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="parent" />
 
 
     <Button
