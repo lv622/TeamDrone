@@ -13,16 +13,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+
     <android.support.v7.widget.RecyclerView
         android:id="@+id/recycler_view"
         android:layout_width="300dp"
-        android:layout_height="match_parent"
-        android:layout_marginTop="33dp"
+        android:layout_height="180dp"
         android:layout_marginLeft="10dp"
+        android:layout_marginTop="33dp"
         android:scrollbars="vertical"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="parent" />
-
+        app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/button"
@@ -225,6 +225,24 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.950" />
+
+
+    <Button
+        android:id="@+id/clearButton"
+        android:layout_width="80dp"
+        android:layout_height="50dp"
+        android:background="#6e4d43"
+        android:gravity="center"
+        android:text="CLEAR"
+        android:textColor="#ffffff"
+        android:textSize="16dp"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.900"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.950" />
+
 
 
     <TableRow

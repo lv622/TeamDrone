@@ -110,7 +110,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button lockOffButton;
 
     private Button geoTypeButton;
-
+    private Button clearButton;
 
     //recycler test_start
     private ArrayList<String> messageArr = new ArrayList<>(); // 메시지 담을 배열
@@ -232,7 +232,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     altitudeText = droneAltitude + "m 이륙고도";
                     altitudeButton.setText(altitudeText);
                     // test 메시지 창
-                    alertUser("0.5m 증가!");
+                    // alertUser("0.5m 증가!");
                 }
             }
         });
@@ -245,7 +245,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     altitudeText = droneAltitude + "m 이륙고도";
                     altitudeButton.setText(altitudeText);
                     // test 메시지 창
-                    alertUser("0.5m 감소!");
+                    // alertUser("0.5m 감소!");
                 }
             }
         });
@@ -449,15 +449,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
 
         recyclerTest();
-//        recyclerView = findViewById(R.id.recycler_view);
-//
-//
-//        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-//        recyclerView.setHasFixedSize(true);
-//
-//        SimpleTextAdapter adapter = new SimpleTextAdapter(messageArr);
-//        recyclerView.setAdapter(adapter);
-
 
     }
 
@@ -621,6 +612,24 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             }
         });
 
+        // 화면 지우기 버튼
+        clearButton = (Button) findViewById(R.id.clearButton);
+        clearButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                polyline.setMap(null);
+                guideLatLngArr.clear();
+                count = 0;
+
+                guideMarker.setMap(null);
+//                messageArr.clear();
+//                recyclerTest();
+
+                // 임무 초기화 필요
+            }
+        });
+
         mNaverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(@NonNull @NotNull PointF pointF, @NonNull @NotNull LatLng latLng) {
@@ -749,6 +758,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         return target.distanceTo(guideLatLng) <= 1; // 확실하지 않음
     }
 
+
     // 모터 가동 입력 시, 모터 가동 구현
     public void onArmButtonTap(View view) {
         State vehicleState = this.drone.getAttribute(AttributeType.STATE);
@@ -784,25 +794,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 }
             });
             takeOffDialog.show();
-            // Take off
-//            ControlApi.getApi(this.drone).takeoff(droneAltitude, new AbstractCommandListener() {
-//
-//                @Override
-//                public void onSuccess() {
-//                    alertUser("Taking off...");
-//
-//                }
-//
-//                @Override
-//                public void onError(int i) {
-//                    alertUser("Unable to take off.");
-//                }
-//
-//                @Override
-//                public void onTimeout() {
-//                    alertUser("Unable to take off.");
-//                }
-//            });
+
         } else if (!vehicleState.isConnected()) {
             // Connect
             alertUser("Connect to a drone first");
@@ -1001,7 +993,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         lineMarker.setIcon(OverlayImage.fromResource(R.drawable.green_dash_line));
         lineMarker.setPosition(new LatLng(position.getLatitude(), position.getLongitude()));
         lineMarker.setAngle((float)droneYaw);
-        lineMarker.setHeight(35);
+        lineMarker.setHeight(150);
         lineMarker.setMap(mNaverMap);
 
         // 드론 아이콘 그리기
