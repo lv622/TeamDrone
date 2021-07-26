@@ -2,10 +2,13 @@ package com.viasofts.mygcs;
 
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.graphics.Color;
 import android.graphics.PointF;
 import android.graphics.SurfaceTexture;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
@@ -17,6 +20,7 @@ import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Surface;
@@ -28,6 +32,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
+import android.widget.SpinnerAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -57,6 +62,7 @@ import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.companion.solo.SoloAttributes;
 import com.o3dr.services.android.lib.drone.companion.solo.SoloState;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
+import com.o3dr.services.android.lib.drone.connection.ConnectionType;
 import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Battery;
@@ -69,11 +75,15 @@ import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.gcs.link.LinkConnectionStatus;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
 import com.o3dr.services.android.lib.model.SimpleCommandListener;
+import com.viasofts.mygcs.activities.helpers.BluetoothDevicesActivity;
+import com.viasofts.mygcs.utils.TLogUtils;
+import com.viasofts.mygcs.utils.prefs.DroidPlannerPrefs;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.text.AttributedCharacterIterator;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class MainActivity extends AppCompatActivity implements DroneListener, TowerListener, LinkListener, OnMapReadyCallback {
 
@@ -112,6 +122,25 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button geoTypeButton;
     private Button clearButton;
 
+    // 미션 거리 선택 버튼
+    private Button distanceButton;
+    private Button upDistanceButton;
+    private Button downDistanceButton;
+
+
+    // 비행 폭 선택 버튼
+    private Button widthButton;
+    private Button upWidthButton;
+    private Button downWidthButton;
+
+    // 미션 유형 선택 버튼
+    private Button missionButton;
+    private Button missionABButton;
+    private Button missionPolygonButton;
+    private Button missionCancelButton;
+
+    private Spinner modeSelector;
+
     //recycler test_start
     private ArrayList<String> messageArr = new ArrayList<>(); // 메시지 담을 배열
     //recycler test_end
@@ -121,6 +150,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Boolean mapFlag = false;
     private Boolean lockFlag = false;
     private Boolean geoFlag = false;
+    private Boolean missionTypeFlag = false;
+    private Boolean distanceFlag = false;
+    private Boolean widthFlag = false;
     // test_start
     private int count = 0;
     private  Marker droneMarker = new Marker();
@@ -128,6 +160,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     // test_end
     private double droneAltitude = 5.5;
     private String altitudeText = "";
+    private int ABDistance = 50;
+    private String distanceText = "";
+    private double flightWidth = 5.5;
+    private String widthText = "";
     //private Spinner modeSelector;
 
     private Marker guideMarker = new Marker();
@@ -139,6 +175,13 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private NaverMap mNaverMap;
 
 
+
+    // test
+    private DroidPlannerPrefs mPrefs;
+    private static final long EVENTS_DISPATCHING_PERIOD = 200L;
+
+    Button mBtnSetConnectionType;
+    // test_blue
 
     Handler mainHandler;
 
@@ -181,7 +224,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 if (flag == false) {
                     button.setText("Disconnect");
                     ConnectionParameter connectionParams = ConnectionParameter.newUdpConnection(null);
-                    drone.connect(connectionParams);
+                    drone.connect(retrieveConnectionParameters());
+                   // drone.connect(connectionParams);
                     flag = true;
                     //test
                     //updateVehicleMode();
@@ -252,16 +296,68 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
 
 
-        // test
         recyclerTest();
 
+        // test
+        SharedPreferences sharedPref = getPreferences(getApplicationContext().MODE_PRIVATE);
+        SharedPrefManager.getInstance().init(sharedPref);
+        mPrefs = DroidPlannerPrefs.getInstance(getApplicationContext());
 
-/*
-        this.modeSelector = (Spinner) findViewById(R.id.modeSelect);
+        mBtnSetConnectionType = findViewById(R.id.button_set_conn_type);
+        final String[] types = getResources().getStringArray(R.array.connection_type);
+        mBtnSetConnectionType.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder
+                        .setTitle("SET CONNECTION TYPE")
+                        .setItems(R.array.connection_type, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                String value = types[id];
+                                SharedPrefManager.save(SharedPrefManager.KEY_CONNECTION, value);
+                                mBtnSetConnectionType.setText(value);
+                            }
+                        });
+
+                final AlertDialog alert = builder.create();
+                alert.show();
+            }
+        });
+
+        String connectionType = SharedPrefManager.read(SharedPrefManager.KEY_CONNECTION);
+        if (connectionType.equals("")) {
+            connectionType = types[0];
+        }
+
+        mBtnSetConnectionType.setText(connectionType);
+
+
+
+
+        // test
+        this.modeSelector = (Spinner) findViewById(R.id.modeSelector);
+
+        final ArrayList<String> modeList = new ArrayList<>();
+
+        modeList.add("STABILIZE");
+        modeList.add("ALT_HOLD");
+        modeList.add("AUTO");
+        modeList.add("GUIDED");
+        modeList.add("LOITER");
+        modeList.add("LAND");
+
+
+        ArrayAdapter spinnerAdapter = new ArrayAdapter(this, R.layout.support_simple_spinner_dropdown_item, modeList);
+        modeSelector.setAdapter(spinnerAdapter);
         this.modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                onFlightModeSelected(view);
+                if(position == 0) changeToStabilize();
+                else if(position == 1) changeToAltHold();
+                else if(position == 2) changeToAuto();
+                else if(position == 3) changeToGuided();
+                else if(position == 4) changeToLoitor();
+                else if(position == 5) changeToLand();
             }
 
             @Override
@@ -269,13 +365,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 // Do nothing
             }
         });
- */
+
 
         // gcs 위치 받아오기
         locationSource = new FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE);
-
-
-
 
 
         mainHandler = new Handler(getApplicationContext().getMainLooper());
@@ -389,9 +482,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             case AttributeEvent.GPS_POSITION:
                 updateGpsPosition();
                 if(guideCount > 0) {
+                    Log.d("test_check", "check!!");
                     if(checkGoal() == true) {
                         guideCount = 0;
                         changeToLoitor();
+                        alertUser("도착 완료");
+                        guideMarker.setMap(null);
                     }
                 }
                 break;
@@ -440,6 +536,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     // Helper methods
     // ==========================================================
+
+
+
 
     protected void alertUser(String message) {
         Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
@@ -623,13 +722,152 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 count = 0;
 
                 guideMarker.setMap(null);
-//                messageArr.clear();
-//                recyclerTest();
 
                 // 임무 초기화 필요
             }
         });
 
+        // 미션 거리 선택
+        distanceButton = (Button) findViewById(R.id.distanceButton);
+        upDistanceButton = (Button) findViewById(R.id.upDistanceButton);
+        downDistanceButton = (Button) findViewById(R.id.downDistanceButton);
+
+        distanceText = ABDistance + "m AB거리";
+        distanceButton.setText(distanceText);
+
+        distanceButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(distanceFlag == true) {
+                    upDistanceButton.setVisibility(View.VISIBLE);
+                    downDistanceButton.setVisibility(View.VISIBLE);
+                    distanceFlag = false;
+                }
+                else {
+                    upDistanceButton.setVisibility(View.INVISIBLE);
+                    downDistanceButton.setVisibility(View.INVISIBLE);
+                    distanceFlag = true;
+                }
+            }
+        });
+
+        upDistanceButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 제한 조건 필요할 듯
+                ABDistance = ABDistance + 10;
+                distanceText = ABDistance + "m AB거리";
+                distanceButton.setText(distanceText);
+            }
+        });
+
+        downDistanceButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(ABDistance > 10) {
+                    ABDistance = ABDistance - 10;
+                    distanceText = ABDistance + "m AB거리";
+                    distanceButton.setText(distanceText);
+                }
+            }
+        });
+
+
+        // 비행 폭 선택
+        widthButton = (Button) findViewById(R.id.flightWidthButton);
+        upWidthButton = (Button) findViewById(R.id.upWidthButton);
+        downWidthButton = (Button) findViewById(R.id.downWidthButton);
+
+        widthText = flightWidth + "m 비행폭";
+        widthButton.setText(widthText);
+
+        widthButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(widthFlag == true) {
+                    upWidthButton.setVisibility(View.VISIBLE);
+                    downWidthButton.setVisibility(View.VISIBLE);
+                    widthFlag = false;
+                }
+                else {
+                    upWidthButton.setVisibility(View.INVISIBLE);
+                    downWidthButton.setVisibility(View.INVISIBLE);
+                    widthFlag = true;
+                }
+            }
+        });
+
+        upWidthButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(flightWidth < 10) {
+                    flightWidth = flightWidth + 0.5;
+                    widthText = flightWidth + "m 비행폭";
+                    widthButton.setText(widthText);
+                }
+            }
+        });
+
+        downWidthButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(flightWidth > 1) {
+                    flightWidth = flightWidth - 0.5;
+                    widthText = flightWidth + "m 비행폭";
+                    widthButton.setText(widthText);
+                }
+            }
+        });
+
+        // 미션 유형 선택
+        missionButton = (Button) findViewById(R.id.missionButton);
+        missionABButton = (Button) findViewById(R.id.missionABButton);
+        missionPolygonButton = (Button) findViewById(R.id.missionPolygonButton);
+        missionCancelButton = (Button) findViewById(R.id.missionCancelButton);
+
+        missionButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(missionTypeFlag == true) {
+                    missionABButton.setVisibility(View.VISIBLE);
+                    missionPolygonButton.setVisibility(View.VISIBLE);
+                    missionCancelButton.setVisibility(View.VISIBLE);
+                    missionTypeFlag = false;
+                }
+                else {
+                    missionABButton.setVisibility(View.INVISIBLE);
+                    missionPolygonButton.setVisibility(View.INVISIBLE);
+                    missionCancelButton.setVisibility(View.INVISIBLE);
+                    missionTypeFlag = true;
+                }
+            }
+        });
+
+        missionABButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // AB 모드 플래그 하나 필요
+                missionButton.setText("AB");
+            }
+        });
+
+        missionPolygonButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 폴리곤 플래그 하나 필요
+                missionButton.setText("다각형");
+           }
+        });
+
+        missionCancelButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 기본 모드 플래그 하나 필요
+                missionButton.setText("임무");
+            }
+        });
+
+        // 가이드 모드 비행
         mNaverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(@NonNull @NotNull PointF pointF, @NonNull @NotNull LatLng latLng) {
@@ -750,12 +988,88 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         });
     }
 
+    // Stabilize mode
+    private void changeToStabilize() {
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_STABILIZE, new SimpleCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("수동 모드로 변경합니다.");
+            }
+            @Override
+            public void onError(int executionError) {
+                alertUser("모드 변경을 할 수 없습니다.");
+            }
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
+    // alt-hold mode
+    private void changeToAltHold() {
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_ALT_HOLD, new SimpleCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("alt-hold 모드로 변경합니다.");
+            }
+            @Override
+            public void onError(int executionError) {
+                alertUser("모드 변경을 할 수 없습니다.");
+            }
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
+    // auto mode
+    private void changeToAuto() {
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_AUTO, new SimpleCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("auto 모드로 변경합니다.");
+            }
+            @Override
+            public void onError(int executionError) {
+                alertUser("모드 변경을 할 수 없습니다.");
+            }
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
+    // land mode
+    private void changeToLand() {
+        VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LAND, new SimpleCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("착륙 모드로 변경합니다.");
+            }
+            @Override
+            public void onError(int executionError) {
+                alertUser("모드 변경을 할 수 없습니다.");
+            }
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
+
+
 
     // 목적지 도착한 것인지 확인하기
     private boolean checkGoal() {
-        GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
-        LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(), guidedState.getCoordinate().getLongitude());
-        return target.distanceTo(guideLatLng) <= 1; // 확실하지 않음
+        //  GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
+      //  LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(), guidedState.getCoordinate().getLongitude());
+        Gps dronePosition = this.drone.getAttribute(AttributeType.GPS);
+        LatLong position = dronePosition.getPosition();
+        LatLng coords =  new LatLng(position.getLatitude(), position.getLongitude());
+        Log.d("test_target1", String.format("가이드 카운트 : %d", guideCount));
+        Log.d("test_target", String.format("위도 : %f 경도 : %f", coords.latitude, coords.longitude));
+        return coords.distanceTo(guideLatLng) <= 1;
+        // return target.distanceTo(guideLatLng) <= 1; // 확실하지 않음
     }
 
 
@@ -987,6 +1301,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         {
             droneMarker.setMap(null);
             lineMarker.setMap(null);
+
         }
 
         // 방향 표시선 그리기
@@ -1006,7 +1321,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
 
         // 비행경로 폴리라인 그리기
-        guideLatLngArr.add(count, new LatLng(position.getLatitude(), position.getLongitude()));
+
+        Collections.addAll(guideLatLngArr, new LatLng(position.getLatitude(), position.getLongitude())); // 기본 카운트를 이용해서 집어넣으니 시작점과 끝점이 연결되는 문제가 발생하여 조치함
         polyline.setCoords(guideLatLngArr);
         polyline.setWidth(5);
         polyline.setColor(Color.WHITE);
@@ -1017,4 +1333,80 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         count++;
     }
 
+    // test
+
+    private ConnectionParameter retrieveConnectionParameters() {
+        final @ConnectionType.Type int connectionType = mPrefs.getConnectionParameterType();
+
+        // Generate the uri for logging the tlog data for this session.
+        Uri tlogLoggingUri = TLogUtils.getTLogLoggingUri(getApplicationContext(),
+                connectionType, System.currentTimeMillis());
+
+        int idx = getConnectionTypeIdx();
+
+        ConnectionParameter connParams;
+        //switch (connectionType) {
+        //switch (ConnectionType.TYPE_BLUETOOTH) {
+        switch (idx) {
+            case ConnectionType.TYPE_USB:
+                connParams = ConnectionParameter.newUsbConnection(mPrefs.getUsbBaudRate(),
+                        tlogLoggingUri, EVENTS_DISPATCHING_PERIOD);
+                break;
+
+            case ConnectionType.TYPE_UDP:
+                if (mPrefs.isUdpPingEnabled()) {
+                    connParams = ConnectionParameter.newUdpWithPingConnection(
+                            mPrefs.getUdpServerPort(),
+                            mPrefs.getUdpPingReceiverIp(),
+                            mPrefs.getUdpPingReceiverPort(),
+                            "Hello".getBytes(),
+                            ConnectionType.DEFAULT_UDP_PING_PERIOD,
+                            tlogLoggingUri,
+                            EVENTS_DISPATCHING_PERIOD);
+                } else {
+                    connParams = ConnectionParameter.newUdpConnection(mPrefs.getUdpServerPort(),
+                            tlogLoggingUri, EVENTS_DISPATCHING_PERIOD);
+                }
+                break;
+
+            case ConnectionType.TYPE_TCP:
+                connParams = ConnectionParameter.newTcpConnection(mPrefs.getTcpServerIp(),
+                        mPrefs.getTcpServerPort(), tlogLoggingUri, EVENTS_DISPATCHING_PERIOD);
+                break;
+
+            case ConnectionType.TYPE_BLUETOOTH:
+                String btAddress = mPrefs.getBluetoothDeviceAddress();
+
+                if (TextUtils.isEmpty(btAddress)) {
+                    connParams = null;
+                    startActivity(new Intent(getApplicationContext(), BluetoothDevicesActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+
+                } else {
+                    connParams = ConnectionParameter.newBluetoothConnection(btAddress,
+                            tlogLoggingUri, EVENTS_DISPATCHING_PERIOD);
+                }
+                break;
+
+            default:
+                Log.e("myLog", "Unrecognized connection type: " + connectionType);
+                connParams = null;
+                break;
+        }
+
+        return connParams;
+    }
+
+    public int getConnectionTypeIdx() {
+        final String[] types = getResources().getStringArray(R.array.connection_type);
+        String strConn = mBtnSetConnectionType.getText().toString();
+
+        int idx = 3;
+        for (int i = 0; i < types.length; i++) {
+            if (types[i].equals(strConn)) {
+                return i;
+            }
+        }
+
+        return idx;
+    }
 }
