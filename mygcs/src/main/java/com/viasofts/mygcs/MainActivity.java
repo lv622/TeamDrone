@@ -63,6 +63,7 @@ import com.o3dr.services.android.lib.drone.companion.solo.SoloAttributes;
 import com.o3dr.services.android.lib.drone.companion.solo.SoloState;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
 import com.o3dr.services.android.lib.drone.connection.ConnectionType;
+import com.o3dr.services.android.lib.drone.mission.Mission;
 import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Battery;
@@ -75,6 +76,7 @@ import com.o3dr.services.android.lib.drone.property.VehicleMode;
 import com.o3dr.services.android.lib.gcs.link.LinkConnectionStatus;
 import com.o3dr.services.android.lib.model.AbstractCommandListener;
 import com.o3dr.services.android.lib.model.SimpleCommandListener;
+import com.o3dr.services.android.lib.util.MathUtils;
 import com.viasofts.mygcs.activities.helpers.BluetoothDevicesActivity;
 import com.viasofts.mygcs.utils.TLogUtils;
 import com.viasofts.mygcs.utils.prefs.DroidPlannerPrefs;
@@ -141,9 +143,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     private Spinner modeSelector;
 
-    //recycler test_start
+
     private ArrayList<String> messageArr = new ArrayList<>(); // 메시지 담을 배열
-    //recycler test_end
 
     private Boolean flag = false;
     private Boolean altitudeFlag = false;
@@ -153,18 +154,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Boolean missionTypeFlag = false;
     private Boolean distanceFlag = false;
     private Boolean widthFlag = false;
-    // test_start
+
     private int count = 0;
     private  Marker droneMarker = new Marker();
     private  Marker lineMarker = new Marker();
-    // test_end
+
     private double droneAltitude = 5.5;
     private String altitudeText = "";
     private int ABDistance = 50;
     private String distanceText = "";
     private double flightWidth = 5.5;
     private String widthText = "";
-    //private Spinner modeSelector;
 
     private Marker guideMarker = new Marker();
     private LatLng guideLatLng;
@@ -174,14 +174,20 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     private NaverMap mNaverMap;
 
-
+    // test_mission
+    private Marker iconA = new Marker();
+    private Marker iconB = new Marker();
+    private ArrayList<LatLng> missionArr = new ArrayList<>(); // 미션에 사용할 배열
+    private Boolean flagAB = false; // AB 모드 전환 플래그
+    private PolylineOverlay lineAB = new PolylineOverlay(); // A와 B를 선택하면 그려지는 라인
+    private int countA = 0;
+    private int countB = 0;
 
     // test
     private DroidPlannerPrefs mPrefs;
     private static final long EVENTS_DISPATCHING_PERIOD = 200L;
 
     Button mBtnSetConnectionType;
-    // test_blue
 
     Handler mainHandler;
 
@@ -189,9 +195,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        // 리사이클러뷰 처리
-
 
 
         // 타이틀 바 제거 및 가로 모드
@@ -349,6 +352,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         ArrayAdapter spinnerAdapter = new ArrayAdapter(this, R.layout.support_simple_spinner_dropdown_item, modeList);
         modeSelector.setAdapter(spinnerAdapter);
+        modeSelector.setBackgroundColor(Color.WHITE);
         this.modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -568,7 +572,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
 
     @Override
-    public void onMapReady(@NonNull @org.jetbrains.annotations.NotNull NaverMap naverMap) {
+    public void onMapReady(@NonNull @org.jetbrains.annotations.NotNull final NaverMap naverMap) {
         mNaverMap = naverMap;
 
         naverMap.setMapType(NaverMap.MapType.Satellite);
@@ -723,6 +727,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                 guideMarker.setMap(null);
 
+                countA = 0;
+                countB = 0;
+                missionArr.clear();
+                iconA.setMap(null);
+                iconB.setMap(null);
+
                 // 임무 초기화 필요
             }
         });
@@ -848,6 +858,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onClick(View v) {
                 // AB 모드 플래그 하나 필요
                 missionButton.setText("AB");
+                flagAB = true;
             }
         });
 
@@ -864,6 +875,43 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onClick(View v) {
                 // 기본 모드 플래그 하나 필요
                 missionButton.setText("임무");
+                flagAB = false;
+            }
+        });
+
+        // AB 라인 미션
+        mNaverMap.setOnMapClickListener(new NaverMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(@NonNull @NotNull PointF pointF, @NonNull @NotNull LatLng latLng) {
+                if(flagAB == true) {
+                    if(countA == 0) {
+                        missionArr.add(latLng);
+                        iconA.setPosition(latLng);
+                        iconA.setIcon(OverlayImage.fromResource(R.drawable.icon_a));
+                        iconA.setWidth(25);
+                        iconA.setHeight(25);
+                        iconA.setMap(mNaverMap);
+                        countA++;
+                    } else if (countA == 1 && countB == 0) {
+                        missionArr.add(latLng);
+                        iconB.setPosition(latLng);
+                        iconB.setIcon(OverlayImage.fromResource(R.drawable.icon_b));
+                        iconB.setWidth(25);
+                        iconB.setHeight(25);
+                        iconB.setMap(mNaverMap);
+                        countB++;
+                        // 추가 구현 필요 (폴리라인 그리기)
+                        // 밑에 구간 계속 사용하도록 만들기 메소드로 구현할 것, 그리고 distance 값 바꾸기
+                        MathUtils mathUtils = new MathUtils();
+                        LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude),
+                                mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(0).latitude, missionArr.get(0).longitude),
+                                        new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude)) + 90, 50);
+                        Marker test_marker = new Marker();
+                        test_marker.setPosition(new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                        test_marker.setMap(mNaverMap);
+                        Log.d("test", String.format("%f, %f", latLong.getLatitude(), latLong.getLongitude()));
+                    }
+                }
             }
         });
 
@@ -1237,6 +1285,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         else if(vehicleMode == vehicleMode.COPTER_ALT_HOLD)
         {
             vehicleModeTextView.setText("ALT-HOLD");
+        }
+        else if(vehicleMode == vehicleMode.COPTER_AUTO)
+        {
+            vehicleModeTextView.setText("AUTO");
         }
         else{
             vehicleModeTextView.setText("UNKNOWN");
