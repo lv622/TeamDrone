@@ -22,6 +22,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.TextureView;
@@ -57,6 +58,7 @@ import com.o3dr.android.client.interfaces.LinkListener;
 import com.o3dr.android.client.interfaces.TowerListener;
 import com.o3dr.android.client.utils.video.MediaCodecManager;
 import com.o3dr.services.android.lib.coordinate.LatLong;
+import com.o3dr.services.android.lib.coordinate.LatLongAlt;
 import com.o3dr.services.android.lib.drone.attribute.AttributeEvent;
 import com.o3dr.services.android.lib.drone.attribute.AttributeType;
 import com.o3dr.services.android.lib.drone.companion.solo.SoloAttributes;
@@ -64,6 +66,8 @@ import com.o3dr.services.android.lib.drone.companion.solo.SoloState;
 import com.o3dr.services.android.lib.drone.connection.ConnectionParameter;
 import com.o3dr.services.android.lib.drone.connection.ConnectionType;
 import com.o3dr.services.android.lib.drone.mission.Mission;
+import com.o3dr.services.android.lib.drone.mission.item.MissionItem;
+import com.o3dr.services.android.lib.drone.mission.item.spatial.Waypoint;
 import com.o3dr.services.android.lib.drone.property.Altitude;
 import com.o3dr.services.android.lib.drone.property.Attitude;
 import com.o3dr.services.android.lib.drone.property.Battery;
@@ -182,6 +186,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private PolylineOverlay lineAB = new PolylineOverlay(); // A와 B를 선택하면 그려지는 라인
     private int countA = 0;
     private int countB = 0;
+
+    private Button missionStartButton;
 
     // test
     private DroidPlannerPrefs mPrefs;
@@ -353,6 +359,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         ArrayAdapter spinnerAdapter = new ArrayAdapter(this, R.layout.support_simple_spinner_dropdown_item, modeList);
         modeSelector.setAdapter(spinnerAdapter);
         modeSelector.setBackgroundColor(Color.WHITE);
+        modeSelector.setGravity(Gravity.CENTER);
         this.modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -733,6 +740,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 iconA.setMap(null);
                 iconB.setMap(null);
 
+                lineAB.setMap(null);
+
                 // 임무 초기화 필요
             }
         });
@@ -834,6 +843,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         missionABButton = (Button) findViewById(R.id.missionABButton);
         missionPolygonButton = (Button) findViewById(R.id.missionPolygonButton);
         missionCancelButton = (Button) findViewById(R.id.missionCancelButton);
+        missionStartButton = (Button) findViewById(R.id.missionStartButton);
 
         missionButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -859,6 +869,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 // AB 모드 플래그 하나 필요
                 missionButton.setText("AB");
                 flagAB = true;
+                missionStartButton.setVisibility(View.VISIBLE);
             }
         });
 
@@ -876,6 +887,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 // 기본 모드 플래그 하나 필요
                 missionButton.setText("임무");
                 flagAB = false;
+                missionStartButton.setVisibility(View.INVISIBLE);
             }
         });
 
@@ -902,14 +914,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         countB++;
                         // 추가 구현 필요 (폴리라인 그리기)
                         // 밑에 구간 계속 사용하도록 만들기 메소드로 구현할 것, 그리고 distance 값 바꾸기
-                        MathUtils mathUtils = new MathUtils();
-                        LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude),
-                                mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(0).latitude, missionArr.get(0).longitude),
-                                        new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude)) + 90, 50);
-                        Marker test_marker = new Marker();
-                        test_marker.setPosition(new LatLng(latLong.getLatitude(), latLong.getLongitude()));
-                        test_marker.setMap(mNaverMap);
-                        Log.d("test", String.format("%f, %f", latLong.getLatitude(), latLong.getLongitude()));
+                        getNextCoords();
+                        lineAB.setCoords(missionArr);
+                        lineAB.setColor(Color.YELLOW);
+                        lineAB.setMap(mNaverMap);
                     }
                 }
             }
@@ -974,6 +982,60 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     }
 
+
+    public void missionLineSetting() {
+        MissionItem missionItem;
+
+        for(int i = 0; i < missionArr.size(); i++) {
+            Waypoint waypoint = new Waypoint();
+            waypoint.setCoordinate(new LatLongAlt(missionArr.get(i).latitude, missionArr.get(i).longitude, droneAltitude));
+        }
+
+
+    }
+
+
+    public void getNextCoords() {
+        MathUtils mathUtils = new MathUtils();
+
+        int missionCount = (int)(ABDistance / flightWidth) * 2 + 2;
+
+        double lineDistance = mathUtils.getDistance2D(new LatLong(missionArr.get(0).latitude, missionArr.get(0).longitude), new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude));
+
+        for(int i = 2; i < missionCount; i++) {
+            if( i % 4 == 2 || i % 4 == 3) {
+                if( i % 4 == 2) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
+                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) + 90, flightWidth);
+                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                } else if ( i % 4 == 3) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
+                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) + 90, lineDistance);
+                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                }
+                // + 90
+            } else if( i % 4 == 0 || i % 4 == 1) {
+                if( i % 4 == 0) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
+                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) - 90, flightWidth);
+                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                } else if(i % 4 == 1) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
+                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) - 90, lineDistance);
+                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                }
+                // -90
+            }
+        }
+
+        LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude),
+                mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(0).latitude, missionArr.get(0).longitude),
+                        new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude)) + 90, flightWidth);
+    }
 
 
     // 롱클릭된 좌표로 드론 이동시키기

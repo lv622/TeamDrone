@@ -414,7 +414,7 @@
         android:id="@+id/clearButton"
         android:layout_width="80dp"
         android:layout_height="50dp"
-        android:background="#6e4d43"
+        android:background="@drawable/small_button_background"
         android:gravity="center"
         android:text="CLEAR"
         android:textColor="#ffffff"
@@ -426,6 +426,23 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0.950" />
 
+
+    <Button
+        android:id="@+id/missionStartButton"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:background="@drawable/small_button_background"
+        android:gravity="center"
+        android:text="임무전송"
+        android:textColor="#ffffff"
+        android:textSize="16dp"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toBottomOf="@+id/map"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.400"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.950" />
 
 
     <TableRow
