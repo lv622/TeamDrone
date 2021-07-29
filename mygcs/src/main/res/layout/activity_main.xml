@@ -437,6 +437,7 @@
         android:textColor="#ffffff"
         android:textSize="16dp"
         android:visibility="invisible"
+        android:onClick="missionButtonClick"
         app:layout_constraintBottom_toBottomOf="@+id/map"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.400"

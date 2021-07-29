@@ -52,6 +52,7 @@ import com.o3dr.android.client.ControlTower;
 import com.o3dr.android.client.Drone;
 import com.o3dr.android.client.apis.ControlApi;
 import com.o3dr.android.client.apis.GimbalApi;
+import com.o3dr.android.client.apis.MissionApi;
 import com.o3dr.android.client.apis.VehicleApi;
 import com.o3dr.android.client.interfaces.DroneListener;
 import com.o3dr.android.client.interfaces.LinkListener;
@@ -188,6 +189,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private int countB = 0;
 
     private Button missionStartButton;
+    private int missionCount = 0;
+    private Mission mission;
 
     // test
     private DroidPlannerPrefs mPrefs;
@@ -424,6 +427,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     @Override
     public void onDroneEvent(String event, Bundle extras) {
+        Log.d("myLog", event);
         switch (event) {
             case AttributeEvent.STATE_CONNECTED:
                 alertUser("Drone Connected");
@@ -506,7 +510,13 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             case AttributeEvent.HOME_UPDATED:
 //                updateDistanceFromHome();
                 break;
+            case AttributeEvent.MISSION_SENT:
+                break;
 
+            case AttributeEvent.MISSION_ITEM_REACHED:
+                alertUser("미션 비행 완료");
+                missionStartButton.setText("임무전송");
+                break;
             default:
                 // Log.i("DRONE_EVENT", event); //Uncomment to see events from the drone
                 break;
@@ -918,6 +928,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         lineAB.setCoords(missionArr);
                         lineAB.setColor(Color.YELLOW);
                         lineAB.setMap(mNaverMap);
+                        // test 이 밑부터는 버튼을 클릭할 시 작동하는 방법으로 가야됨
+                        missionLineSetting();
                     }
                 }
             }
@@ -983,17 +995,83 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     }
 
 
+    public void missionButtonClick(View view) {
+        missionStartButton = findViewById(R.id.missionStartButton);
+        if(flagAB == true) {
+            if (missionCount == 0) {
+                missionLineSetting();
+                missionCount++;
+                missionStartButton.setText("임무시작");
+            }
+            else if(missionCount == 1) {
+                missionStartSetting();
+                missionCount++;
+                missionStartButton.setText("임무종료");
+            }
+            else if(missionCount == 2) {
+                missionPauseSetting();
+                changeToLoitor();
+                missionCount = 0;
+                missionStartButton.setText("임무전송");
+           }
+        }
+    }
+
     public void missionLineSetting() {
-        MissionItem missionItem;
+        mission = new Mission();
+        Altitude droneAltitude = this.drone.getAttribute(AttributeType.ALTITUDE);
 
         for(int i = 0; i < missionArr.size(); i++) {
             Waypoint waypoint = new Waypoint();
-            waypoint.setCoordinate(new LatLongAlt(missionArr.get(i).latitude, missionArr.get(i).longitude, droneAltitude));
+            waypoint.setCoordinate(new LatLongAlt(missionArr.get(i).latitude, missionArr.get(i).longitude, droneAltitude.getAltitude()));
+            waypoint.setDelay(1);
+            mission.addMissionItem(i, waypoint);
         }
-
-
+        MissionApi.getApi(this.drone).setMission(mission, true);
     }
 
+    public void missionStartSetting() {
+        MissionApi.getApi(this.drone).startMission(true, true, new AbstractCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("임무를 시작합니다!");
+            }
+
+            @Override
+            public void onError(int executionError) {
+                alertUser("임무를 종료합니다.");
+                missionCount = 0;
+            }
+
+            @Override
+            public void onTimeout() {
+                alertUser("시간 초과로 임무를 종료합니다.");
+                missionCount = 0;
+            }
+        });
+    }
+
+    public void missionPauseSetting() {
+        MissionApi.getApi(this.drone).pauseMission(new AbstractCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("임무를 멈춥니다.");
+                missionCount = 1;
+            }
+
+            @Override
+            public void onError(int executionError) {
+                alertUser("Error");
+                missionCount = 2;
+            }
+
+            @Override
+            public void onTimeout() {
+                alertUser("time out");
+                missionCount = 2;
+            }
+        });
+    }
 
     public void getNextCoords() {
         MathUtils mathUtils = new MathUtils();
@@ -1031,10 +1109,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 // -90
             }
         }
-
-        LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude),
-                mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(0).latitude, missionArr.get(0).longitude),
-                        new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude)) + 90, flightWidth);
     }
 
 
