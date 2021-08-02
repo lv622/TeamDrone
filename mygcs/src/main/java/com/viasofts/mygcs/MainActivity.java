@@ -46,6 +46,7 @@ import com.naver.maps.map.UiSettings;
 import com.naver.maps.map.overlay.LocationOverlay;
 import com.naver.maps.map.overlay.Marker;
 import com.naver.maps.map.overlay.OverlayImage;
+import com.naver.maps.map.overlay.PolygonOverlay;
 import com.naver.maps.map.overlay.PolylineOverlay;
 import com.naver.maps.map.util.FusedLocationSource;
 import com.o3dr.android.client.ControlTower;
@@ -86,6 +87,7 @@ import com.viasofts.mygcs.activities.helpers.BluetoothDevicesActivity;
 import com.viasofts.mygcs.utils.TLogUtils;
 import com.viasofts.mygcs.utils.prefs.DroidPlannerPrefs;
 
+import org.droidplanner.services.android.impl.core.polygon.Polygon;
 import org.jetbrains.annotations.NotNull;
 
 import java.text.AttributedCharacterIterator;
@@ -191,6 +193,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button missionStartButton;
     private int missionCount = 0;
     private Mission mission;
+
+
+    private ArrayList<Marker> polygonMarker = new ArrayList<>();
+    private Boolean flagPolygon = false;
+    private PolygonOverlay polygon = new PolygonOverlay();
+    private ArrayList<LatLng> polygonLatLng = new ArrayList<>();
+    private int markerCount = 0;
+    private ArrayList<Double> compareDegree = new ArrayList<>();
+
+    private ArrayList<LatLng> realPolygonLatLng = new ArrayList<>();
+    private ArrayList<Double> compareDistance = new ArrayList<>();
 
     // test
     private DroidPlannerPrefs mPrefs;
@@ -515,6 +528,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
             case AttributeEvent.MISSION_ITEM_REACHED:
                 alertUser("미션 비행 완료");
+                missionCount = 0;
                 missionStartButton.setText("임무전송");
                 break;
             default:
@@ -752,6 +766,15 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                 lineAB.setMap(null);
 
+                polygon.setMap(null);
+
+                for(int i = 0; i < polygonMarker.size(); i++) {
+                    polygonMarker.get(i).setMap(null);
+                }
+                polygonMarker.clear();
+                polygonLatLng.clear();
+                realPolygonLatLng.clear();
+                markerCount = 0;
                 // 임무 초기화 필요
             }
         });
@@ -876,9 +899,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         missionABButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // AB 모드 플래그 하나 필요
                 missionButton.setText("AB");
                 flagAB = true;
+                flagPolygon = false;
                 missionStartButton.setVisibility(View.VISIBLE);
             }
         });
@@ -886,7 +909,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         missionPolygonButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 폴리곤 플래그 하나 필요
+                flagAB = false;
+                flagPolygon = true;
                 missionButton.setText("다각형");
            }
         });
@@ -894,9 +918,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         missionCancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // 기본 모드 플래그 하나 필요
                 missionButton.setText("임무");
                 flagAB = false;
+                flagPolygon = false;
                 missionStartButton.setVisibility(View.INVISIBLE);
             }
         });
@@ -931,6 +955,80 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         // test 이 밑부터는 버튼을 클릭할 시 작동하는 방법으로 가야됨
                         missionLineSetting();
                     }
+                } else if(flagPolygon == true) {
+                    polygonMarker.add(markerCount, new Marker());
+                    polygonMarker.get(markerCount).setPosition(latLng);
+                    polygonMarker.get(markerCount).setMap(mNaverMap);
+
+                    polygonLatLng.add(markerCount, latLng);
+
+                    polygon.setMap(null);
+                    if(markerCount >= 2){
+                        // 폴리곤 그리기 <- 20개 이상 찍을 때 생기는 버그 수정 필요
+                        MathUtils mathUtils = new MathUtils();
+
+                        double pivotDegree = 360.0;
+                        double pivotDistance = 100000000.0;
+                        int compareCount = 0;
+                        int realPolygonCount = 0;
+                        int compareDegreeCount = 0;
+
+                        realPolygonLatLng.clear();
+                        realPolygonLatLng.add(0, polygonLatLng.get(0));
+                        realPolygonCount++;
+                        for(int i = 0; i < polygonLatLng.size() - 1; i++) {
+                            for(int j = i+1; j < polygonLatLng.size(); j++) {
+                                compareDegree.add(compareDegreeCount, mathUtils.getHeadingFromCoordinates(new LatLong(polygonLatLng.get(i).latitude, polygonLatLng.get(i).longitude),
+                                        new LatLong(polygonLatLng.get(j).latitude, polygonLatLng.get(j).longitude)));
+                                compareDistance.add(compareDegreeCount, mathUtils.getDistance2D(new LatLong(polygonLatLng.get(i).latitude, polygonLatLng.get(i).longitude),
+                                        new LatLong(polygonLatLng.get(j).latitude, polygonLatLng.get(j).longitude)));
+                                compareDegreeCount++;
+
+                            }
+
+                            for(int q = 0; q < compareDegree.size(); q++) {
+                                if(pivotDistance >= compareDistance.get(q)) {
+                                    pivotDistance = compareDistance.get(q);
+                                    compareCount = q;
+                                    if(pivotDegree >= compareDegree.get(q)) {
+                                        pivotDegree = compareDegree.get(q);
+                                        compareCount = q;
+
+                                    }
+                                }
+                                /*
+                                if(pivotDegree >= compareDegree.get(q)) {
+                                    pivotDegree = compareDegree.get(q);
+                                    compareCount = q;
+
+                                }
+                                */
+
+                            }
+
+                            if(i+1 != compareCount+1+i) {
+                            Collections.swap(polygonLatLng, i+1, compareCount+1+i);}
+                            realPolygonLatLng.add(realPolygonCount, polygonLatLng.get(i+1));
+                            realPolygonCount++;
+                            pivotDegree = 360.0;
+                            compareDegree.clear();
+                            compareDegreeCount = 0;
+                            compareDistance.clear();
+                            pivotDistance = 100000000.0;
+                        }
+
+
+                        polygon.setCoords(realPolygonLatLng);
+                        polygon.setColor(0x00ffffff);
+                        polygon.setOutlineWidth(5);
+                        polygon.setOutlineColor(Color.BLUE);
+                        polygon.setMap(mNaverMap);
+
+
+                        // 클리어 버튼 클릭 시 폴리곤 초기화 필요
+                    }
+
+                    markerCount++;
                 }
             }
         });
@@ -995,24 +1093,24 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     }
 
 
+    // 버튼 클릭 시 텍스트 변경이 안되는 점 개션 필요
     public void missionButtonClick(View view) {
         missionStartButton = findViewById(R.id.missionStartButton);
         if(flagAB == true) {
             if (missionCount == 0) {
-                missionLineSetting();
+                missionStartButton.setText("임무설정");
                 missionCount++;
-                missionStartButton.setText("임무시작");
+                missionLineSetting();
+
             }
             else if(missionCount == 1) {
-                missionStartSetting();
+                missionStartButton.setText("임무시작");
                 missionCount++;
-                missionStartButton.setText("임무종료");
+                missionStartSetting();
             }
             else if(missionCount == 2) {
+                missionStartButton.setText("임무종료");
                 missionPauseSetting();
-                changeToLoitor();
-                missionCount = 0;
-                missionStartButton.setText("임무전송");
            }
         }
     }
@@ -1039,14 +1137,14 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
             @Override
             public void onError(int executionError) {
-                alertUser("임무를 종료합니다.");
-                missionCount = 0;
+                alertUser("임무 시작을 종료합니다.");
+                missionCount = 1;
             }
 
             @Override
             public void onTimeout() {
                 alertUser("시간 초과로 임무를 종료합니다.");
-                missionCount = 0;
+                missionCount = 1;
             }
         });
     }
@@ -1057,6 +1155,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("임무를 멈춥니다.");
                 missionCount = 1;
+                changeToLoitor();
             }
 
             @Override
@@ -1245,7 +1344,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     // 목적지 도착한 것인지 확인하기
     private boolean checkGoal() {
-        //  GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
+      //  GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
       //  LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(), guidedState.getCoordinate().getLongitude());
         Gps dronePosition = this.drone.getAttribute(AttributeType.GPS);
         LatLong position = dronePosition.getPosition();
