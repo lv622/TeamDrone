@@ -618,6 +618,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         // 줌 버튼 제거
         final UiSettings uiSettings = naverMap.getUiSettings();
         uiSettings.setZoomControlEnabled(false);
+        uiSettings.setCompassEnabled(false);
 
         mapButton = (Button) findViewById(R.id.mapTypeButton);
         normalMap = (Button) findViewById(R.id.normalMapButton);
@@ -972,6 +973,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         int compareCount = 0;
                         int realPolygonCount = 0;
                         int compareDegreeCount = 0;
+                        // 추가
+                        double detectDistance = 0.0;
+                        double detectPivotDistance = 0.0;
+                        int mDetectionA = 0, mDetectionB = 0;
+                        double longestDistanceDegree = 0.0;
 
                         realPolygonLatLng.clear();
                         realPolygonLatLng.add(0, polygonLatLng.get(0));
@@ -1024,8 +1030,23 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         polygon.setOutlineColor(Color.BLUE);
                         polygon.setMap(mNaverMap);
 
+                        // 폴리곤 안에 라인 그리기 필요
+                        // 밑의 코드는 가장 긴 변 찾기
+                        for(int i = 0; i < realPolygonLatLng.size() - 1; i++) {
+                            for(int j = i+1; j < realPolygonLatLng.size(); j++) {
+                                detectDistance = mathUtils.getDistance2D(new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude),
+                                        new LatLong(realPolygonLatLng.get(j).latitude, realPolygonLatLng.get(j).longitude));
+                                if(detectDistance >= detectPivotDistance) {
+                                    detectPivotDistance = detectDistance;
+                                    mDetectionA = i;
+                                    mDetectionB = j;
+                                }
+                            }
+                        }
+                        // 가장 긴 변의 각도 찾기
+                        longestDistanceDegree = mathUtils.getHeadingFromCoordinates(new LatLong(realPolygonLatLng.get(mDetectionA).latitude, realPolygonLatLng.get(mDetectionB).longitude),
+                                new LatLong(realPolygonLatLng.get(mDetectionB).latitude, realPolygonLatLng.get(mDetectionB).longitude));
 
-                        // 클리어 버튼 클릭 시 폴리곤 초기화 필요
                     }
 
                     markerCount++;
