@@ -38,6 +38,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.naver.maps.geometry.LatLng;
+import com.naver.maps.geometry.LatLngBounds;
 import com.naver.maps.map.LocationTrackingMode;
 import com.naver.maps.map.MapFragment;
 import com.naver.maps.map.NaverMap;
@@ -204,6 +205,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     private ArrayList<LatLng> realPolygonLatLng = new ArrayList<>();
     private ArrayList<Double> compareDistance = new ArrayList<>();
+
+    private ArrayList<LatLng> innerPolyLineLatLng = new ArrayList<>();
+    private PolylineOverlay innerPolyLine = new PolylineOverlay();
 
     // test
     private DroidPlannerPrefs mPrefs;
@@ -978,6 +982,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         double detectPivotDistance = 0.0;
                         int mDetectionA = 0, mDetectionB = 0;
                         double longestDistanceDegree = 0.0;
+                        int crossCount = 0;
+                        int innerCount = 0;
 
                         realPolygonLatLng.clear();
                         realPolygonLatLng.add(0, polygonLatLng.get(0));
@@ -1031,22 +1037,185 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         polygon.setMap(mNaverMap);
 
                         // 폴리곤 안에 라인 그리기 필요
+                        // 폴리곤 초기화
+                        innerPolyLineLatLng.clear();
+
+
                         // 밑의 코드는 가장 긴 변 찾기
+                        detectPivotDistance = mathUtils.getDistance2D(new LatLong(realPolygonLatLng.get(realPolygonLatLng.size()-1).latitude, realPolygonLatLng.get(realPolygonLatLng.size()-1).longitude),
+                                new LatLong(realPolygonLatLng.get(0).latitude, realPolygonLatLng.get(0).longitude));
+                        mDetectionA = 0;
+                        mDetectionB = realPolygonLatLng.size() - 1;
                         for(int i = 0; i < realPolygonLatLng.size() - 1; i++) {
-                            for(int j = i+1; j < realPolygonLatLng.size(); j++) {
-                                detectDistance = mathUtils.getDistance2D(new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude),
-                                        new LatLong(realPolygonLatLng.get(j).latitude, realPolygonLatLng.get(j).longitude));
-                                if(detectDistance >= detectPivotDistance) {
-                                    detectPivotDistance = detectDistance;
-                                    mDetectionA = i;
-                                    mDetectionB = j;
-                                }
+
+                            detectDistance = mathUtils.getDistance2D(new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude),
+                                    new LatLong(realPolygonLatLng.get(i+1).latitude, realPolygonLatLng.get(i+1).longitude));
+
+                            if(detectDistance >= detectPivotDistance) {
+                                detectPivotDistance = detectDistance;
+                                mDetectionA = i;
+                                mDetectionB = i+1;
                             }
                         }
+
+
+                        LatLngBounds bounds = new LatLngBounds.Builder().include(realPolygonLatLng).build();
+
+
+                        double testDistanceWidth = 0.0, testDistacneHeight = 0.0;
+                        double testDistance = 0.0;
+
+
+                        for(int i = 1; i < realPolygonLatLng.size(); i++) {
+                            if(testDistance <= mathUtils.getDistance2D(new LatLong(
+                                    realPolygonLatLng.get(0).latitude, realPolygonLatLng.get(0).longitude
+                            ), new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude))) {
+                                testDistance =  mathUtils.getDistance2D(new LatLong(
+                                        realPolygonLatLng.get(0).latitude, realPolygonLatLng.get(0).longitude
+                                ), new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude));
+                            }
+                        }
+
+                        bounds = bounds.buffer(testDistance);
+
                         // 가장 긴 변의 각도 찾기
-                        longestDistanceDegree = mathUtils.getHeadingFromCoordinates(new LatLong(realPolygonLatLng.get(mDetectionA).latitude, realPolygonLatLng.get(mDetectionB).longitude),
+                        longestDistanceDegree = mathUtils.getHeadingFromCoordinates(new LatLong(realPolygonLatLng.get(mDetectionA).latitude, realPolygonLatLng.get(mDetectionA).longitude),
                                 new LatLong(realPolygonLatLng.get(mDetectionB).latitude, realPolygonLatLng.get(mDetectionB).longitude));
 
+
+                        LatLng testLatLong = bounds.getSouthWest();
+
+                        LatLng center = bounds.getCenter();
+
+
+                        innerPolyLineLatLng.add(innerCount, new LatLng((((testLatLong.latitude-center.latitude)*Math.cos(Math.toRadians(90-longestDistanceDegree))-(testLatLong.longitude-center.longitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)))+ center.latitude ),
+                                ((testLatLong.latitude-center.latitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)) + (testLatLong.longitude-center.longitude)*Math.cos(Math.toRadians(90-longestDistanceDegree)))+center.longitude));
+
+                        testLatLong = bounds.getNorthWest();
+                        innerPolyLineLatLng.add(innerCount, new LatLng((((testLatLong.latitude-center.latitude)*Math.cos(Math.toRadians(90-longestDistanceDegree))-(testLatLong.longitude-center.longitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)))+ center.latitude ),
+                                ((testLatLong.latitude-center.latitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)) + (testLatLong.longitude-center.longitude)*Math.cos(Math.toRadians(90-longestDistanceDegree)))+center.longitude));
+
+
+                        testLatLong = bounds.getNorthEast();
+                        innerPolyLineLatLng.add(innerCount, new LatLng((((testLatLong.latitude-center.latitude)*Math.cos(Math.toRadians(90-longestDistanceDegree))-(testLatLong.longitude-center.longitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)))+ center.latitude ),
+                                ((testLatLong.latitude-center.latitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)) + (testLatLong.longitude-center.longitude)*Math.cos(Math.toRadians(90-longestDistanceDegree)))+center.longitude));
+
+                        testLatLong = bounds.getSouthEast();
+                        innerPolyLineLatLng.add(innerCount, new LatLng((((testLatLong.latitude-center.latitude)*Math.cos(Math.toRadians(90-longestDistanceDegree))-(testLatLong.longitude-center.longitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)))+ center.latitude ),
+                                ((testLatLong.latitude-center.latitude)*Math.sin(Math.toRadians(90-longestDistanceDegree)) + (testLatLong.longitude-center.longitude)*Math.cos(Math.toRadians(90-longestDistanceDegree)))+center.longitude));
+
+                        Log.d("test_comp", String.format("%f", mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(0).latitude, innerPolyLineLatLng.get(0).longitude),
+                                new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude))));
+                        Log.d("test_comp", String.format("%f", mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude),
+                                new LatLong(innerPolyLineLatLng.get(2).latitude, innerPolyLineLatLng.get(2).longitude))));
+                        Log.d("test_comp", String.format("%f", longestDistanceDegree));
+//                        innerPolyLineLatLng.add(innerCount, bounds.getSouthWest());
+//                        innerPolyLineLatLng.add(innerCount, bounds.getNorthWest());
+//                        innerPolyLineLatLng.add(innerCount, bounds.getNorthEast());
+//                        innerPolyLineLatLng.add(innerCount, bounds.getSouthEast());
+
+
+
+
+//                        LatLong latlongStore = mathUtils.newCoordFromBearingAndDistance(new LatLong(bounds.getSouthWest().latitude, bounds.getSouthWest().longitude),
+//                                90,0);
+//                        innerPolyLineLatLng.add(innerCount, new LatLng(latlongStore.getLatitude(), latlongStore.getLongitude()));
+//                        innerCount++;
+//
+//                        latlongStore = mathUtils.newCoordFromBearingAndDistance(new LatLong(bounds.getNorthWest().latitude, bounds.getNorthWest().longitude),
+//                                90,0);
+//                        innerPolyLineLatLng.add(innerCount, new LatLng(latlongStore.getLatitude(), latlongStore.getLongitude()));
+//                        innerCount++;
+//
+//                        latlongStore = mathUtils.newCoordFromBearingAndDistance(new LatLong(bounds.getNorthEast().latitude, bounds.getNorthEast().longitude),
+//                                90,0);
+//                        innerPolyLineLatLng.add(innerCount, new LatLng(latlongStore.getLatitude(), latlongStore.getLongitude()));
+//                        innerCount++;
+//
+//                        latlongStore = mathUtils.newCoordFromBearingAndDistance(new LatLong(bounds.getSouthEast().latitude, bounds.getSouthEast().longitude),
+//                                90,0);
+//                        innerPolyLineLatLng.add(innerCount, new LatLng(latlongStore.getLatitude(), latlongStore.getLongitude()));
+//                        innerCount++;
+
+
+//                        innerPolyLineLatLng.add(innerCount, realPolygonLatLng.get(mDetectionA));
+//                        innerCount++;
+//                        innerPolyLineLatLng.add(innerCount, realPolygonLatLng.get(mDetectionB));
+//                        innerCount++;
+//
+//                        // 가장 긴 변에서 +90도 방향으로 좌표 만들고 확장시키기 (각의 방향이 무조건 ab순으로 되기 때문에 고쳐야함)
+//                        // 도형의 방향을 알아서 ba순으로 가는 조건도 집어넣어야함
+//                        LatLong latLongA = mathUtils.newCoordFromBearingAndDistance(new LatLong(realPolygonLatLng.get(mDetectionA).latitude, realPolygonLatLng.get(mDetectionA).longitude),
+//                                longestDistanceDegree + 90, flightWidth);
+//                        latLongA = mathUtils.newCoordFromBearingAndDistance(latLongA, longestDistanceDegree , flightWidth);
+//                        LatLong latLongB = mathUtils.newCoordFromBearingAndDistance(new LatLong(realPolygonLatLng.get(mDetectionB).latitude,realPolygonLatLng.get(mDetectionB).longitude ),
+//                                longestDistanceDegree + 90, flightWidth);
+//                        latLongB = mathUtils.newCoordFromBearingAndDistance(latLongB, longestDistanceDegree, -flightWidth);
+//
+//                        double px = 0.0, py = 0.0, p = 0.0;
+//                        for(int i = 0; i < realPolygonLatLng.size() -1 ; i++) {
+////                            if(i == realPolygonLatLng.size() - 1) {
+////                                px = (realPolygonLatLng.get(i).latitude * realPolygonLatLng.get(0).longitude - realPolygonLatLng.get(i).longitude * realPolygonLatLng.get(0).latitude) * (latLongA.getLatitude() - latLongB.getLatitude()) -
+////                                        (realPolygonLatLng.get(i).latitude - realPolygonLatLng.get(0).latitude) * (latLongA.getLatitude() * latLongB.getLongitude() - latLongA.getLongitude() * latLongB.getLatitude());
+////                                py = (realPolygonLatLng.get(i).latitude * realPolygonLatLng.get(0).longitude - realPolygonLatLng.get(i).longitude * realPolygonLatLng.get(0).latitude) * (latLongA.getLongitude() - latLongB.getLongitude()) -
+////                                        (realPolygonLatLng.get(i).longitude - realPolygonLatLng.get(0).longitude) * (latLongA.getLatitude() * latLongB.getLongitude() - latLongA.getLongitude() * latLongB.getLatitude());
+////                                p = (realPolygonLatLng.get(i).latitude - realPolygonLatLng.get(0).latitude) * (latLongA.getLongitude() - latLongB.getLongitude()) - (realPolygonLatLng.get(i).longitude - realPolygonLatLng.get(0).longitude)
+////                                        * (latLongA.getLatitude() - latLongB.getLatitude());
+////                            }
+//                                px = (realPolygonLatLng.get(i).latitude * realPolygonLatLng.get(i + 1).longitude - realPolygonLatLng.get(i).longitude * realPolygonLatLng.get(i + 1).latitude) * (latLongA.getLatitude() - latLongB.getLatitude()) -
+//                                        (realPolygonLatLng.get(i).latitude - realPolygonLatLng.get(i + 1).latitude) * (latLongA.getLatitude() * latLongB.getLongitude() - latLongA.getLongitude() * latLongB.getLatitude());
+//                                py = (realPolygonLatLng.get(i).latitude * realPolygonLatLng.get(i + 1).longitude - realPolygonLatLng.get(i).longitude * realPolygonLatLng.get(i + 1).latitude) * (latLongA.getLongitude() - latLongB.getLongitude()) -
+//                                        (realPolygonLatLng.get(i).longitude - realPolygonLatLng.get(i + 1).longitude) * (latLongA.getLatitude() * latLongB.getLongitude() - latLongA.getLongitude() * latLongB.getLatitude());
+//                                p = (realPolygonLatLng.get(i).latitude - realPolygonLatLng.get(i + 1).latitude) * (latLongA.getLongitude() - latLongB.getLongitude()) - (realPolygonLatLng.get(i).longitude - realPolygonLatLng.get(i + 1).longitude)
+//                                        * (latLongA.getLatitude() - latLongB.getLatitude());
+//
+//                            if(p == 0) ;
+//                            else {
+//                                px = px / p;
+//                                py = py / p;
+//                                Log.d("test_comp", String.format("%f", p));
+//                                innerPolyLineLatLng.add(innerCount, new LatLng(px, py));
+//                                innerCount++;
+//                            }
+//                        }
+//
+//
+//                        // 교점의 순서를 아는게 우선
+//                        // 우선 밑은 테스트
+//                        for(double i = flightWidth; i <= 50; i+=flightWidth ) {
+//                            latLongA = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(innerCount - 2).latitude, innerPolyLineLatLng.get(innerCount - 2).longitude),
+//                                    longestDistanceDegree + 90, flightWidth);
+//                            latLongB = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(innerCount- 1).latitude, innerPolyLineLatLng.get(innerCount- 1).longitude),
+//                                    longestDistanceDegree + 90, flightWidth);
+//
+//                            px = 0.0;
+//                            py = 0.0;
+//                            p = 0.0;
+//                            for(int j = 0; j < realPolygonLatLng.size() -1 ; j++) {
+//                                px = (realPolygonLatLng.get(j).latitude * realPolygonLatLng.get(j + 1).longitude - realPolygonLatLng.get(j).longitude * realPolygonLatLng.get(j + 1).latitude) * (latLongA.getLatitude() - latLongB.getLatitude()) -
+//                                        (realPolygonLatLng.get(j).latitude - realPolygonLatLng.get(j + 1).latitude) * (latLongA.getLatitude() * latLongB.getLongitude() - latLongA.getLongitude() * latLongB.getLatitude());
+//                                py = (realPolygonLatLng.get(j).latitude * realPolygonLatLng.get(j + 1).longitude - realPolygonLatLng.get(j).longitude * realPolygonLatLng.get(j + 1).latitude) * (latLongA.getLongitude() - latLongB.getLongitude()) -
+//                                        (realPolygonLatLng.get(j).longitude - realPolygonLatLng.get(j + 1).longitude) * (latLongA.getLatitude() * latLongB.getLongitude() - latLongA.getLongitude() * latLongB.getLatitude());
+//                                p = (realPolygonLatLng.get(j).latitude - realPolygonLatLng.get(j + 1).latitude) * (latLongA.getLongitude() - latLongB.getLongitude()) - (realPolygonLatLng.get(j).longitude - realPolygonLatLng.get(j + 1).longitude)
+//                                        * (latLongA.getLatitude() - latLongB.getLatitude());
+//
+//                                if(p == 0) ;
+//                                else {
+//                                    px = px / p;
+//                                    py = py / p;
+//                                    Log.d("test_comp", String.format("%f", p));
+//                                    innerPolyLineLatLng.add(innerCount, new LatLng(px, py));
+//                                    innerCount++;
+//                                }
+//                            }
+//                        }
+
+                        // 가장 긴 선을 찾아서 반복문을 이용하여 + 비행폭을 계속하며 그 선의 길이를 넘기 전까지 반복하게 만들기
+
+                        Log.d("test_comp", innerPolyLineLatLng.toString());
+                        innerPolyLine.setCoords(innerPolyLineLatLng);
+                        innerPolyLine.setColor(Color.WHITE);
+                        innerPolyLine.setMap(mNaverMap);
                     }
 
                     markerCount++;
