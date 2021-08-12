@@ -210,6 +210,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private PolylineOverlay innerPolyLine = new PolylineOverlay();
 
     // test
+    private PolylineOverlay testPoly = new PolylineOverlay();
+    private PolygonOverlay testPolygon = new PolygonOverlay();
+    private ArrayList<LatLng> testPolygonPolyline = new ArrayList<>();
+
+    // test
     private DroidPlannerPrefs mPrefs;
     private static final long EVENTS_DISPATCHING_PERIOD = 200L;
 
@@ -967,6 +972,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                     polygonLatLng.add(markerCount, latLng);
 
+
                     polygon.setMap(null);
                     if(markerCount >= 2){
                         // 폴리곤 그리기 <- 20개 이상 찍을 때 생기는 버그 수정 필요
@@ -989,6 +995,274 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                         boundLeftLine.clear();
                         boundRightLine.clear();
+
+                        // test line
+                        // 폴리곤 정렬은 아무 문제 없이 진행됨
+                        ArrayList<LatLng> testLatLng1 = new ArrayList<>();
+                        ArrayList<Double> testDegree = new ArrayList<>();
+                        LatLngBounds testBounds = new LatLngBounds.Builder().include(polygonLatLng).build();
+                        LatLng testCenter = testBounds.getCenter();
+
+
+                        for(int i = 0; i < polygonLatLng.size(); i++) {
+                            testDegree.add(i, mathUtils.getHeadingFromCoordinates(new LatLong(testCenter.latitude, testCenter.longitude),
+                                    new LatLong(polygonLatLng.get(i).latitude, polygonLatLng.get(i).longitude)));
+                            testLatLng1.add(i, polygonLatLng.get(i));
+                        }
+
+                        for(int i = 0; i < polygonLatLng.size() -1; i++) {
+                            for(int j = i+1; j < polygonLatLng.size(); j++) {
+                                if(testDegree.get(i) > testDegree.get(j)) {
+                                    Collections.swap(testLatLng1, i, j);
+                                    Collections.swap(testDegree, i, j);
+                                }
+                            }
+                        }
+
+                        // 경계 크기 늘리기
+                        double boundDistance = 0.0, widthDistacne = 0.0, heightDistane = 0.0;
+                        widthDistacne = mathUtils.getDistance2D(new LatLong(testBounds.getNorthWest().latitude, testBounds.getNorthWest().longitude), new LatLong(testBounds.getNorthEast().latitude, testBounds.getNorthEast().longitude));
+                        heightDistane = mathUtils.getDistance2D(new LatLong(testBounds.getSouthWest().latitude, testBounds.getSouthWest().longitude), new LatLong(testBounds.getNorthWest().latitude, testBounds.getNorthWest().longitude));
+                        if(widthDistacne >= heightDistane) {
+                            boundDistance = widthDistacne;
+                        } else {
+                            boundDistance = heightDistane;
+                        }
+
+                        testBounds = testBounds.buffer(boundDistance*4);
+
+                        // 가장 긴 변의 길이를 구하고 각의 크기 구하기
+                        double longDegree = 0.0, longDistance = 0.0, checkedDistance = 0.0;
+                        int firstIndex = testLatLng1.size()-1, secondIndex = 0;
+
+                        longDistance = mathUtils.getDistance2D(new LatLong(testLatLng1.get(testLatLng1.size()-1).latitude, testLatLng1.get(testLatLng1.size()-1).longitude),
+                                new LatLong(testLatLng1.get(0).latitude, testLatLng1.get(0).longitude));
+                        longDegree = mathUtils.getHeadingFromCoordinates(new LatLong(testLatLng1.get(testLatLng1.size()-1).latitude, testLatLng1.get(testLatLng1.size()-1).longitude),
+                                new LatLong(testLatLng1.get(0).latitude, testLatLng1.get(0).longitude));
+                        for(int i = 0; i < testLatLng1.size() -1; i++) {
+                            checkedDistance = mathUtils.getDistance2D(new LatLong(testLatLng1.get(i).latitude, testLatLng1.get(i).longitude),
+                                    new LatLong(testLatLng1.get(i+1).latitude, testLatLng1.get(i+1).longitude));
+                            if(longDistance < checkedDistance) {
+                                longDistance = checkedDistance;
+                                firstIndex = i;
+                                secondIndex = i+1;
+                                longDegree = mathUtils.getHeadingFromCoordinates(new LatLong(testLatLng1.get(i).latitude, testLatLng1.get(i).longitude),
+                                        new LatLong(testLatLng1.get(i+1).latitude, testLatLng1.get(i+1).longitude));
+                            }
+                        }
+
+                        // test code 1 회전 변환
+
+                        // 각도가 180보다 작을 때
+
+                        ArrayList<LatLng> testInnerLine = new ArrayList<>();
+                        testInnerLine.clear();
+
+
+                        LatLng center = testBounds.getCenter();
+
+                        double testBoundWidth = 0.0, testBoundLength = 0.0;
+                        testBoundWidth = mathUtils.getDistance2D(new LatLong(testBounds.getNorthWest().latitude,testBounds.getNorthWest().longitude),
+                                new LatLong(testBounds.getNorthEast().latitude, testBounds.getNorthEast().longitude));
+                        testBoundLength = mathUtils.getDistance2D(new LatLong(testBounds.getNorthWest().latitude, testBounds.getNorthWest().longitude),
+                                new LatLong(testBounds.getSouthWest().latitude, testBounds.getSouthWest().longitude));
+                        int testInnerCount = 0;
+                        LatLong testLatLong;
+
+                        if(longDegree < 180) {
+                            testInnerLine.add(testInnerCount, testBounds.getNorthWest());
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
+                                    longDegree, testBoundWidth);
+
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
+                                            new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude)) + 90, testBoundLength);
+
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude),
+                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                            new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                        } else if(longDegree >= 180) {
+                            testInnerLine.add(testInnerCount, testBounds.getSouthWest());
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
+                                    longDegree, testBoundWidth);
+
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
+                                            new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude)) + 90, testBoundLength);
+
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude),
+                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                            new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
+                            testInnerLine.add(innerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            Collections.swap(testInnerLine, 0, 3);
+                            Collections.swap(testInnerLine, 1, 2);
+                        }
+
+
+                        testPoly.setMap(null);
+                        testPoly.setCoords(testInnerLine);
+                        testPoly.setColor(Color.WHITE);
+                        testPoly.setMap(mNaverMap);
+
+                        // test code 2 비행폭만큼 경계 사각형 나누기
+
+
+                        double testLengthDegree = 0.0;
+                        int testLineCount = 0;
+                        ArrayList<LatLng> testBoundLeftLine = new ArrayList<>();
+                        ArrayList<LatLng> testBoundRightLine = new ArrayList<>();
+                        testBoundLeftLine.clear();
+                        testBoundRightLine.clear();
+
+                        testLengthDegree = mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude));
+
+                        for(int i = 0;i <= testBoundLength; i+= flightWidth) {
+                            if(i == 0) {
+                                testBoundLeftLine.add(testLineCount, testInnerLine.get(0));
+                                testBoundRightLine.add(testLineCount, testInnerLine.get(1));
+                                testLineCount++;
+                            } else {
+                                testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testBoundLeftLine.get(testLineCount-1).latitude, testBoundLeftLine.get(testLineCount-1).longitude),
+                                        testLengthDegree, flightWidth);
+                                testBoundLeftLine.add(testLineCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                                testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testBoundRightLine.get(testLineCount-1).latitude, testBoundRightLine.get(testLineCount-1).longitude),
+                                        testLengthDegree, flightWidth);
+                                testBoundRightLine.add(testLineCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                                testLineCount++;
+                            }
+                        }
+
+
+                        // test code 3
+
+
+
+                        testPolygonPolyline.clear();
+                        double tx = 0.0, ty = 0.0, t = 0.0;
+                        int testPolylineCount = 0;
+                        for(int i = 0; i < testLineCount; i++) {
+                            for (int j = 0; j < testLatLng1.size() - 1; j++) {
+
+                                tx = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(j).latitude - testLatLng1.get(j+1).latitude)) -
+                                        ( (testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*((testLatLng1.get(j).latitude*testLatLng1.get(j+1).longitude) - (testLatLng1.get(j).longitude*testLatLng1.get(j+1).latitude)));
+                                ty = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(j).longitude - testLatLng1.get(j+1).longitude) )-
+                                        ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*((testLatLng1.get(j).latitude*testLatLng1.get(j+1).longitude) - (testLatLng1.get(j).longitude*testLatLng1.get(j+1).latitude)));
+                                t = (((testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*(testLatLng1.get(j).longitude - testLatLng1.get(j+1).longitude))) -
+                                        ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*(testLatLng1.get(j).latitude-testLatLng1.get(j+1).latitude));
+
+                                if(t == 0) ;
+                                else {
+                                    tx = tx / t;
+                                    ty = ty / t;
+                                    if(testLatLng1.get(j).latitude > testLatLng1.get(j+1).latitude) {
+                                        if(testLatLng1.get(j+1).latitude <= tx && testLatLng1.get(j).latitude >= tx) {
+                                            if (testLatLng1.get(j).longitude > testLatLng1.get(j + 1).longitude) {
+                                                if (testLatLng1.get(j + 1).longitude <= ty && testLatLng1.get(j).longitude >= ty) {
+                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                    testPolylineCount++;
+                                                }
+                                            } else if (testLatLng1.get(j).longitude < testLatLng1.get(j + 1).longitude) {
+                                                if (testLatLng1.get(j).longitude <= ty && testLatLng1.get(j + 1).longitude >= ty) {
+                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                    testPolylineCount++;
+                                                }
+                                            }
+                                        }
+                                    } else if (testLatLng1.get(j).latitude < testLatLng1.get(j+1).latitude) {
+                                        if(testLatLng1.get(j).latitude <= tx && testLatLng1.get(j+1).latitude >= tx) {
+                                            if (testLatLng1.get(j).longitude > testLatLng1.get(j + 1).longitude) {
+                                                if (testLatLng1.get(j + 1).longitude <= ty && testLatLng1.get(j).longitude >= ty) {
+                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                    testPolylineCount++;
+                                                }
+                                            } else if (testLatLng1.get(j).longitude < testLatLng1.get(j + 1).longitude) {
+                                                if (testLatLng1.get(j).longitude <= ty && testLatLng1.get(j + 1).longitude >= ty) {
+                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                    testPolylineCount++;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                }
+
+
+                                if(j == testLatLng1.size() - 2) {
+                                    tx = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(testLatLng1.size() - 1).latitude - testLatLng1.get(0).latitude)) -
+                                            ( (testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*((testLatLng1.get(testLatLng1.size() - 1).latitude*testLatLng1.get(0).longitude) - (testLatLng1.get(testLatLng1.size() - 1).longitude*testLatLng1.get(0).latitude)));
+                                    ty = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(testLatLng1.size() - 1).longitude - testLatLng1.get(0).longitude) )-
+                                            ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*((testLatLng1.get(testLatLng1.size() - 1).latitude*testLatLng1.get(0).longitude) - (testLatLng1.get(testLatLng1.size() - 1).longitude*testLatLng1.get(0).latitude)));
+                                    t = (((testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*(testLatLng1.get(testLatLng1.size() - 1).longitude - testLatLng1.get(0).longitude))) -
+                                            ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*(testLatLng1.get(testLatLng1.size() - 1).latitude-testLatLng1.get(0).latitude));
+
+                                    if(t == 0) ;
+                                    else {
+                                        tx = tx / t;
+                                        ty = ty / t;
+                                        if(testLatLng1.get(testLatLng1.size() - 1).latitude > testLatLng1.get(0).latitude) {
+                                            if(testLatLng1.get(0).latitude <= tx && testLatLng1.get(testLatLng1.size() - 1).latitude >= tx) {
+                                                if (testLatLng1.get(testLatLng1.size() - 1).longitude > testLatLng1.get(0).longitude) {
+                                                    if (testLatLng1.get(0).longitude <= ty && testLatLng1.get(testLatLng1.size() - 1).longitude >= ty) {
+                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                        testPolylineCount++;
+                                                    }
+                                                } else if (testLatLng1.get(testLatLng1.size() - 1).longitude < testLatLng1.get(0).longitude) {
+                                                    if (testLatLng1.get(testLatLng1.size() - 1).longitude <= ty && testLatLng1.get(0).longitude >= ty) {
+                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                        testPolylineCount++;
+                                                    }
+                                                }
+                                            }
+                                        } else if (testLatLng1.get(testLatLng1.size() - 1).latitude < testLatLng1.get(0).latitude) {
+                                            if(testLatLng1.get(testLatLng1.size() - 1).latitude <= tx && testLatLng1.get(0).latitude >= tx) {
+                                                if (testLatLng1.get(testLatLng1.size() - 1).longitude > testLatLng1.get(0).longitude) {
+                                                    if (testLatLng1.get(0).longitude <= ty && testLatLng1.get(testLatLng1.size() - 1).longitude >= ty) {
+                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                        testPolylineCount++;
+                                                    }
+                                                } else if (testLatLng1.get(testLatLng1.size() - 1).longitude < testLatLng1.get(0).longitude) {
+                                                    if (testLatLng1.get(testLatLng1.size() - 1).longitude <= ty && testLatLng1.get(0).longitude >= ty) {
+                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
+                                                        testPolylineCount++;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
+
+                        }
+
+
+                        for(int i = 0; i < testPolygonPolyline.size()-2; i+=2) {
+                            if(i % 4 == 2) {
+                                Collections.swap(testPolygonPolyline, i, i+1);
+                            }
+                        }
+
+
+                        Log.d("test_error", testPolygonPolyline.toString());
+                        innerPolyLine.setCoords(testPolygonPolyline);
+                        innerPolyLine.setColor(Color.YELLOW);
+                        innerPolyLine.setMap(mNaverMap);
+
+                        // test line
 
                         realPolygonLatLng.clear();
                         realPolygonLatLng.add(0, polygonLatLng.get(0));
@@ -1036,11 +1310,19 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         }
 
 
-                        polygon.setCoords(realPolygonLatLng);
+                        polygon.setCoords(testLatLng1);
                         polygon.setColor(0x00ffffff);
                         polygon.setOutlineWidth(5);
                         polygon.setOutlineColor(Color.BLUE);
                         polygon.setMap(mNaverMap);
+
+
+
+//                        polygon.setCoords(realPolygonLatLng);
+//                        polygon.setColor(0x00ffffff);
+//                        polygon.setOutlineWidth(5);
+//                        polygon.setOutlineColor(Color.BLUE);
+//                        polygon.setMap(mNaverMap);
 
                         // 폴리곤 안에 라인 그리기 필요
                         // 폴리곤 초기화
@@ -1087,9 +1369,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                                 new LatLong(realPolygonLatLng.get(mDetectionB).latitude, realPolygonLatLng.get(mDetectionB).longitude));
 
 
-                        LatLng testLatLong = bounds.getSouthWest();
 
-                        LatLng center = bounds.getCenter();
 
                         double boundWidth = 0.0, boundLength = 0.0;
                         boundWidth = mathUtils.getDistance2D(new LatLong(bounds.getNorthWest().latitude,bounds.getNorthWest().longitude),
@@ -1162,6 +1442,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         }
 
 
+
+
                         // 교점 구하기
                         ArrayList<LatLng> polygonPolyline = new ArrayList<>();
                         polygonPolyline.clear();
@@ -1216,8 +1498,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         }
 
 
+
                         // 지그재그 완료
-                        for(int i = 0; i < polygonPolyline.size(); i+=2) {
+                        for(int i = 0; i < polygonPolyline.size()-2; i+=2) {
                             if(i % 4 == 2) {
                                 Collections.swap(polygonPolyline, i, i+1);
                             }
@@ -1225,9 +1508,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                         // 순서에 맞게 마커 나오도록 만들기, 단, 마커 안에 숫자는 계속 증가되도록 만들기
                         // 그리고 드론 위치에 가까운 곳부터 시작하게 만들기
-                        innerPolyLine.setCoords(polygonPolyline);
-                        innerPolyLine.setColor(Color.WHITE);
-                        innerPolyLine.setMap(mNaverMap);
+
+//                        testPoly.setMap(null);
+//                        testPoly.setCoords(innerPolyLineLatLng);
+//                        testPoly.setColor(Color.WHITE);
+//                        testPoly.setMap(mNaverMap);
+
+
+                        // IllegalArgumentException 이거 나오는 것 수정 필요
+//                        innerPolyLine.setCoords(polygonPolyline);
+//                        innerPolyLine.setColor(Color.YELLOW);
+//                        innerPolyLine.setMap(mNaverMap);
                         Log.d("test_comp", innerPolyLineLatLng.toString());
 
                     }
