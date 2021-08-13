@@ -213,6 +213,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private PolylineOverlay testPoly = new PolylineOverlay();
     private PolygonOverlay testPolygon = new PolygonOverlay();
     private ArrayList<LatLng> testPolygonPolyline = new ArrayList<>();
+    private Marker testMarker = new Marker();
 
     // test
     private DroidPlannerPrefs mPrefs;
@@ -1088,7 +1089,34 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                                             new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
                             testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
                             testInnerCount++;
-                        } else if(longDegree >= 180) {
+                        } else if(longDegree >= 180 && longDegree < 270) {
+
+                            // 180 ~ 270도의 경우와 270~360도의 경우 좌표 값 바꾸기
+                            testInnerLine.add(testInnerCount, testBounds.getNorthWest());
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
+                                    longDegree + 180 , testBoundWidth);
+
+                            testMarker.setPosition(testBounds.getNorthWest());
+                            testMarker.setMap(mNaverMap);
+
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
+                                            new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude)) + 90, testBoundLength);
+
+                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude),
+                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
+                                            new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
+                            testInnerLine.add(innerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
+                            testInnerCount++;
+                            Collections.swap(testInnerLine, 0, 3);
+                            Collections.swap(testInnerLine, 1, 2);
+                        } else if(longDegree >= 270 && longDegree < 360) {
+
                             testInnerLine.add(testInnerCount, testBounds.getSouthWest());
                             testInnerCount++;
                             testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
@@ -1174,11 +1202,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                                                 if (testLatLng1.get(j + 1).longitude <= ty && testLatLng1.get(j).longitude >= ty) {
                                                     testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                     testPolylineCount++;
+                                                    // test log
+                                                    Log.d("test_error", String.format("%f", tx));
+                                                    Log.d("test_error", String.format("%f", ty));
                                                 }
                                             } else if (testLatLng1.get(j).longitude < testLatLng1.get(j + 1).longitude) {
                                                 if (testLatLng1.get(j).longitude <= ty && testLatLng1.get(j + 1).longitude >= ty) {
                                                     testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                     testPolylineCount++;
+                                                    // test log
+                                                    Log.d("test_error", String.format("%f", tx));
+                                                    Log.d("test_error", String.format("%f", ty));
                                                 }
                                             }
                                         }
@@ -1188,11 +1222,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                                                 if (testLatLng1.get(j + 1).longitude <= ty && testLatLng1.get(j).longitude >= ty) {
                                                     testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                     testPolylineCount++;
+                                                    // test log
+                                                    Log.d("test_error", String.format("%f", tx));
+                                                    Log.d("test_error", String.format("%f", ty));
                                                 }
                                             } else if (testLatLng1.get(j).longitude < testLatLng1.get(j + 1).longitude) {
                                                 if (testLatLng1.get(j).longitude <= ty && testLatLng1.get(j + 1).longitude >= ty) {
                                                     testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                     testPolylineCount++;
+                                                    // test log
+                                                    Log.d("test_error", String.format("%f", tx));
+                                                    Log.d("test_error", String.format("%f", ty));
                                                 }
                                             }
                                         }
@@ -1219,11 +1259,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                                                     if (testLatLng1.get(0).longitude <= ty && testLatLng1.get(testLatLng1.size() - 1).longitude >= ty) {
                                                         testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                         testPolylineCount++;
+                                                        // test log
+                                                        Log.d("test_error", String.format("%f", tx));
+                                                        Log.d("test_error", String.format("%f", ty));
                                                     }
                                                 } else if (testLatLng1.get(testLatLng1.size() - 1).longitude < testLatLng1.get(0).longitude) {
                                                     if (testLatLng1.get(testLatLng1.size() - 1).longitude <= ty && testLatLng1.get(0).longitude >= ty) {
                                                         testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                         testPolylineCount++;
+                                                        // test log
+                                                        Log.d("test_error", String.format("%f", tx));
+                                                        Log.d("test_error", String.format("%f", ty));
                                                     }
                                                 }
                                             }
@@ -1233,11 +1279,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                                                     if (testLatLng1.get(0).longitude <= ty && testLatLng1.get(testLatLng1.size() - 1).longitude >= ty) {
                                                         testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                         testPolylineCount++;
+                                                        // test log
+                                                        Log.d("test_error", String.format("%f", tx));
+                                                        Log.d("test_error", String.format("%f", ty));
                                                     }
                                                 } else if (testLatLng1.get(testLatLng1.size() - 1).longitude < testLatLng1.get(0).longitude) {
                                                     if (testLatLng1.get(testLatLng1.size() - 1).longitude <= ty && testLatLng1.get(0).longitude >= ty) {
                                                         testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
                                                         testPolylineCount++;
+                                                        // test log
+                                                        Log.d("test_error", String.format("%f", tx));
+                                                        Log.d("test_error", String.format("%f", ty));
                                                     }
                                                 }
                                             }
