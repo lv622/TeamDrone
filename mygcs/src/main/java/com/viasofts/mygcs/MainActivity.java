@@ -28,6 +28,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebView;
 import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -194,6 +195,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Button missionStartButton;
     private int missionCount = 0;
     private Mission mission;
+
+
+    // test_web
+    private Button webStreamButton;
+    private Boolean webFlag = false;
+
 
 
     private ArrayList<Marker> polygonMarker = new ArrayList<>();
@@ -1902,6 +1909,26 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         // return target.distanceTo(guideLatLng) <= 1; // 확실하지 않음
     }
 
+    // web test
+
+    // 버튼 뷰 문제 해결할 것
+
+    public void onWebTestButton(View view) {
+
+        // 모바일 핫스팟을 이용한 연결이 필요, 즉, 밑의 url을 변경해야함
+        String videoURL = "http://192.168.0.19:8081";
+        WebView mWebView;
+        mWebView = findViewById(R.id.webView);
+
+        if(webFlag == false) {
+            mWebView.setVisibility(View.VISIBLE);
+            mWebView.loadUrl(videoURL);
+            webFlag = true;
+        } else {
+            mWebView.setVisibility(View.INVISIBLE);
+            webFlag = false;
+        }
+    }
 
     // 모터 가동 입력 시, 모터 가동 구현
     public void onArmButtonTap(View view) {

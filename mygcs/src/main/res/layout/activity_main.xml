@@ -7,12 +7,36 @@
     tools:context=".MainActivity">
 
 
+    <Button
+        android:id="@+id/button_Webview_test"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="10dp"
+        android:text="Stream"
+        android:onClick="onWebTestButton"
+        app:layout_constraintBottom_toTopOf="@+id/button_set_conn_type"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+
+
+
+
     <fragment
         android:id="@+id/map"
         android:name="com.naver.maps.map.MapFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="invisible"
+        app:layout_constraintTop_toTopOf="parent">
+
+    </WebView>
 
     <android.support.v7.widget.RecyclerView
         android:id="@+id/recycler_view"
@@ -597,6 +621,8 @@
             android:textColor="#ffffff" />
 
     </TableRow>
+
+
 
 
 </android.support.constraint.ConstraintLayout>
