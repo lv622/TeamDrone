@@ -95,6 +95,7 @@ import org.jetbrains.annotations.NotNull;
 import java.text.AttributedCharacterIterator;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements DroneListener, TowerListener, LinkListener, OnMapReadyCallback {
 
@@ -111,9 +112,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     private static final int DEFAULT_UDP_PORT = 14550;
     private static final int DEFAULT_USB_BAUD_RATE = 57600;
-
-
-
 
 
     private Button button;
@@ -147,7 +145,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     // 미션 유형 선택 버튼
     private Button missionButton;
     private Button missionABButton;
-    private Button missionPolygonButton;
     private Button missionCancelButton;
 
     private Spinner modeSelector;
@@ -165,8 +162,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Boolean widthFlag = false;
 
     private int count = 0;
-    private  Marker droneMarker = new Marker();
-    private  Marker lineMarker = new Marker();
+    private Marker droneMarker = new Marker();
+    private Marker lineMarker = new Marker();
 
     private double droneAltitude = 5.5;
     private String altitudeText = "";
@@ -197,10 +194,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private Mission mission;
 
 
-    // test_web
-    private Button webStreamButton;
-    private Boolean webFlag = false;
-
+    //추가 9/30
+    private Button returnButton;
 
 
     private ArrayList<Marker> polygonMarker = new ArrayList<>();
@@ -211,16 +206,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     private ArrayList<Double> compareDegree = new ArrayList<>();
 
     private ArrayList<LatLng> realPolygonLatLng = new ArrayList<>();
-    private ArrayList<Double> compareDistance = new ArrayList<>();
-
-    private ArrayList<LatLng> innerPolyLineLatLng = new ArrayList<>();
-    private PolylineOverlay innerPolyLine = new PolylineOverlay();
-
-    // test
-    private PolylineOverlay testPoly = new PolylineOverlay();
-    private PolygonOverlay testPolygon = new PolygonOverlay();
-    private ArrayList<LatLng> testPolygonPolyline = new ArrayList<>();
-    private Marker testMarker = new Marker();
 
     // test
     private DroidPlannerPrefs mPrefs;
@@ -229,6 +214,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     Button mBtnSetConnectionType;
 
     Handler mainHandler;
+
+    private Boolean checkReturnHome = false;
+    private Marker homeMarker = new Marker();
+    private LatLong homePositionG;
+    private LatLng homePositionN;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -248,13 +239,28 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         // 네이버 맵 띄우기
         FragmentManager fm = getSupportFragmentManager();
-        MapFragment mapFragment = (MapFragment)fm.findFragmentById(R.id.map);
+        MapFragment mapFragment = (MapFragment) fm.findFragmentById(R.id.map);
         if (mapFragment == null) {
             mapFragment = MapFragment.newInstance();
             fm.beginTransaction().add(R.id.map, mapFragment).commit();
         }
 
         mapFragment.getMapAsync(this);
+
+
+        // Spinner modeSelector
+        this.modeSelector = (Spinner) findViewById(R.id.modeSelector);
+        this.modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                onFlightModeSelected(view);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Do nothing
+            }
+        });
 
 
         // 버튼 클릭 시, 드론과 연결
@@ -267,16 +273,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                     button.setText("Disconnect");
                     ConnectionParameter connectionParams = ConnectionParameter.newUdpConnection(null);
                     drone.connect(retrieveConnectionParameters());
-                   // drone.connect(connectionParams);
+                    // drone.connect(connectionParams);
                     flag = true;
-                    //test
-                    //updateVehicleMode();
-                    Log.d("test", drone.getConnectionParameter().toString());
                 } else {
                     button.setText("Connect");
                     drone.disconnect();
                     flag = false;
-                    // 추가 부분
 
                     polyline.setMap(null);
                     guideLatLngArr.clear();
@@ -286,13 +288,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             }
         });
 
-
         // 고도 상승 및 하강 버튼 구현
         altitudeButton = (Button) findViewById(R.id.altitudeButton);
         upAltitude = (Button) findViewById(R.id.upAltitudeButton);
         downAltitude = (Button) findViewById(R.id.downAltitudeButton);
 
-        altitudeText = droneAltitude + "m 이륙고도";
+        altitudeText = droneAltitude + "m\n이륙고도";
         altitudeButton.setText(altitudeText);
 
         altitudeButton.setOnClickListener(new View.OnClickListener() {
@@ -313,12 +314,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         upAltitude.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(droneAltitude < 10) {
+                if (droneAltitude < 10) {
                     droneAltitude += 0.5;
-                    altitudeText = droneAltitude + "m 이륙고도";
+                    altitudeText = droneAltitude + "m\n이륙고도";
                     altitudeButton.setText(altitudeText);
-                    // test 메시지 창
-                    // alertUser("0.5m 증가!");
                 }
             }
         });
@@ -326,16 +325,15 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         downAltitude.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(droneAltitude > 3) {
+                if (droneAltitude > 3) {
                     droneAltitude -= 0.5;
-                    altitudeText = droneAltitude + "m 이륙고도";
+                    altitudeText = droneAltitude + "m\n이륙고도";
                     altitudeButton.setText(altitudeText);
                     // test 메시지 창
                     // alertUser("0.5m 감소!");
                 }
             }
         });
-
 
 
         recyclerTest();
@@ -373,47 +371,14 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
         mBtnSetConnectionType.setText(connectionType);
 
-
-
-
         // test
         this.modeSelector = (Spinner) findViewById(R.id.modeSelector);
 
         final ArrayList<String> modeList = new ArrayList<>();
 
-        modeList.add("STABILIZE");
-        modeList.add("ALT_HOLD");
-        modeList.add("AUTO");
-        modeList.add("GUIDED");
-        modeList.add("LOITER");
-        modeList.add("LAND");
-
-
-        ArrayAdapter spinnerAdapter = new ArrayAdapter(this, R.layout.support_simple_spinner_dropdown_item, modeList);
-        modeSelector.setAdapter(spinnerAdapter);
-        modeSelector.setBackgroundColor(Color.WHITE);
-        modeSelector.setGravity(Gravity.CENTER);
-        this.modeSelector.setOnItemSelectedListener(new Spinner.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if(position == 0) changeToStabilize();
-                else if(position == 1) changeToAltHold();
-                else if(position == 2) changeToAuto();
-                else if(position == 3) changeToGuided();
-                else if(position == 4) changeToLoitor();
-                else if(position == 5) changeToLand();
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // Do nothing
-            }
-        });
-
 
         // gcs 위치 받아오기
         locationSource = new FusedLocationSource(this, LOCATION_PERMISSION_REQUEST_CODE);
-
 
         mainHandler = new Handler(getApplicationContext().getMainLooper());
     }
@@ -436,11 +401,32 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     }
 
+    private void onFlightModeSelected(View view) {
+        VehicleMode vehicleMode = (VehicleMode) this.modeSelector.getSelectedItem();
+
+        VehicleApi.getApi(this.drone).setVehicleMode(vehicleMode, new AbstractCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("Vehicle mode change successful.");
+            }
+
+            @Override
+            public void onError(int executionError) {
+                alertUser("Vehicle mode change failed: " + executionError);
+            }
+
+            @Override
+            public void onTimeout() {
+                alertUser("Vehicle mode change timed out.");
+            }
+        });
+    }
+
     @Override
     public void onStart() {
         super.onStart();
         this.controlTower.connect(this);
-        //updateVehicleModesForType(this.droneType);
+        updateVehicleModesForType(this.droneType);
     }
 
     @Override
@@ -457,37 +443,22 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     @Override
     public void onDroneEvent(String event, Bundle extras) {
-        Log.d("myLog", event);
         switch (event) {
             case AttributeEvent.STATE_CONNECTED:
                 alertUser("Drone Connected");
                 updateArmButton();
-               // updateConnectedButton(this.drone.isConnected());
-/*
-                updateConnectedButton(this.drone.isConnected());
-                updateArmButton();
- */
                 checkSoloState();
-
                 break;
 
 
             case AttributeEvent.STATE_DISCONNECTED:
                 alertUser("Drone Disconnected");
                 updateArmButton();
-              //  updateConnectedButton(this.drone.isConnected());
-/*
-                updateConnectedButton(this.drone.isConnected());
-                updateArmButton();
- */
                 break;
 
             case AttributeEvent.STATE_UPDATED:
             case AttributeEvent.STATE_ARMING:
                 updateArmButton();
-/*
-                updateArmButton();
- */
                 break;
 
             case AttributeEvent.TYPE_UPDATED:
@@ -526,13 +497,25 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
             case AttributeEvent.GPS_POSITION:
                 updateGpsPosition();
-                if(guideCount > 0) {
-                    Log.d("test_check", "check!!");
-                    if(checkGoal() == true) {
+                if (guideCount > 0) {
+                    if (checkGoal() == true) {
                         guideCount = 0;
                         changeToLoitor();
                         alertUser("도착 완료");
                         guideMarker.setMap(null);
+                    }
+                }
+                State vehicleState = this.drone.getAttribute(AttributeType.STATE);
+                VehicleMode vehicleMode = vehicleState.getVehicleMode();
+                // 리턴 버튼 테스트 필요
+                if (vehicleMode == vehicleMode.COPTER_GUIDED && checkReturnHome) {
+                    if (checkBackHome() == true) {
+                        changeToLand(); // land
+                        alertUser("도착 완료");
+                        checkReturnHome = false;
+                        homeMarker.setMap(null);
+                        Gps droneGps = this.drone.getAttribute(AttributeType.GPS);
+                        LatLong vehiclePosition = droneGps.getPosition();
                     }
                 }
                 break;
@@ -556,10 +539,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
     private void checkSoloState() {
         final SoloState soloState = drone.getAttribute(SoloAttributes.SOLO_STATE);
-        if (soloState == null){
+        if (soloState == null) {
             alertUser("Unable to retrieve the solo state.");
-        }
-        else {
+        } else {
             alertUser("Solo state is up to date.");
         }
     }
@@ -590,17 +572,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     // ==========================================================
 
 
-
-
     protected void alertUser(String message) {
-        Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
-        Log.d("TAG", message);
-
+        //Toast.makeText(getApplicationContext(), message, Toast.LENGTH_SHORT).show();
         messageArr.add(String.format("★ " + message));
-
-
         recyclerTest();
-
     }
 
     public void recyclerTest() {
@@ -631,7 +606,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         locationOverlay.setVisible(true);
         naverMap.setLocationTrackingMode(LocationTrackingMode.Follow);
 
-
         // 줌 버튼 제거
         final UiSettings uiSettings = naverMap.getUiSettings();
         uiSettings.setZoomControlEnabled(false);
@@ -646,13 +620,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         mapButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(mapFlag == true) {
+                if (mapFlag == true) {
                     normalMap.setVisibility(View.VISIBLE);
                     geoMap.setVisibility(View.VISIBLE);
                     satelliteMap.setVisibility(View.VISIBLE);
                     mapFlag = false;
-                }
-                else {
+                } else {
                     normalMap.setVisibility(View.INVISIBLE);
                     geoMap.setVisibility(View.INVISIBLE);
                     satelliteMap.setVisibility(View.INVISIBLE);
@@ -664,13 +637,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         normalMap.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
                 mNaverMap.setMapType(NaverMap.MapType.Basic);
-                normalMap.setBackgroundColor(0xffffa159);
-                geoMap.setBackgroundColor(0xff6e4d43);
-                satelliteMap.setBackgroundColor(0xff6e4d43);
+                normalMap.setBackgroundResource(R.drawable.btn_on);
+                geoMap.setBackgroundResource(R.drawable.btn_off);
+                satelliteMap.setBackgroundResource(R.drawable.btn_off);
                 mapButton.setText("일반지도");
-
             }
         });
 
@@ -679,12 +650,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             @Override
             public void onClick(View v) {
                 mNaverMap.setMapType(NaverMap.MapType.Terrain);
-                normalMap.setBackgroundColor(0xff6e4d43);
-                geoMap.setBackgroundColor(0xffffa159);
-                satelliteMap.setBackgroundColor(0xff6e4d43);
+                normalMap.setBackgroundResource(R.drawable.btn_off);
+                geoMap.setBackgroundResource(R.drawable.btn_on);
+                satelliteMap.setBackgroundResource(R.drawable.btn_off);
                 mapButton.setText("지형도");
-
-
             }
         });
 
@@ -692,14 +661,13 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             @Override
             public void onClick(View v) {
                 mNaverMap.setMapType(NaverMap.MapType.Satellite);
-                normalMap.setBackgroundColor(0xff6e4d43);
-                geoMap.setBackgroundColor(0xff6e4d43);
-                satelliteMap.setBackgroundColor(0xffffa159);
+                normalMap.setBackgroundResource(R.drawable.btn_off);
+                geoMap.setBackgroundResource(R.drawable.btn_off);
+                satelliteMap.setBackgroundResource(R.drawable.btn_on);
                 mapButton.setText("위성지도");
 
             }
         });
-
 
         // 멥 이동 잠금 버튼 기능
         lockButton = (Button) findViewById(R.id.lockTypeButton);
@@ -710,12 +678,11 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         lockButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(lockFlag == true) {
+                if (lockFlag == true) {
                     lockOnButton.setVisibility(View.VISIBLE);
                     lockOffButton.setVisibility(View.VISIBLE);
                     lockFlag = false;
-                }
-                else {
+                } else {
                     lockOnButton.setVisibility(View.INVISIBLE);
                     lockOffButton.setVisibility(View.INVISIBLE);
                     lockFlag = true;
@@ -728,8 +695,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             @Override
             public void onClick(View v) {
                 uiSettings.setScrollGesturesEnabled(false);
-                lockOnButton.setBackgroundColor(0xffffa159);
-                lockOffButton.setBackgroundColor(0xff6e4d43);
+                lockOnButton.setBackgroundResource(R.drawable.btn_on);
+                lockOffButton.setBackgroundResource(R.drawable.btn_off);
                 lockButton.setText("맵 잠금");
             }
         });
@@ -738,8 +705,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             @Override
             public void onClick(View v) {
                 uiSettings.setScrollGesturesEnabled(true);
-                lockOnButton.setBackgroundColor(0xff6e4d43);
-                lockOffButton.setBackgroundColor(0xffffa159);
+                lockOnButton.setBackgroundResource(R.drawable.btn_off);
+                lockOffButton.setBackgroundResource(R.drawable.btn_on);
                 lockButton.setText("맵 이동");
             }
         });
@@ -750,14 +717,14 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         geoTypeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(geoFlag == true) {
-                    geoTypeButton.setBackgroundColor(0xff6e4d43);
-                    geoTypeButton.setText("지적도Off");
+                if (geoFlag == true) {
+                    geoTypeButton.setBackgroundResource(R.drawable.btn_off);
+                    geoTypeButton.setText("지적도\nOff");
                     mNaverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_CADASTRAL, false);
                     geoFlag = false;
                 } else {
-                    geoTypeButton.setBackgroundColor(0xffffa159);
-                    geoTypeButton.setText("지적도On");
+                    geoTypeButton.setBackgroundResource(R.drawable.btn_on);
+                    geoTypeButton.setText("지적도\nOn");
                     mNaverMap.setLayerGroupEnabled(NaverMap.LAYER_GROUP_CADASTRAL, true);
                     geoFlag = true;
                 }
@@ -775,6 +742,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 count = 0;
 
                 guideMarker.setMap(null);
+                homeMarker.setMap(null);
 
                 countA = 0;
                 countB = 0;
@@ -786,7 +754,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                 polygon.setMap(null);
 
-                for(int i = 0; i < polygonMarker.size(); i++) {
+                for (int i = 0; i < polygonMarker.size(); i++) {
                     polygonMarker.get(i).setMap(null);
                 }
                 polygonMarker.clear();
@@ -802,18 +770,17 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         upDistanceButton = (Button) findViewById(R.id.upDistanceButton);
         downDistanceButton = (Button) findViewById(R.id.downDistanceButton);
 
-        distanceText = ABDistance + "m AB거리";
+        distanceText = ABDistance + "m\nAB거리";
         distanceButton.setText(distanceText);
 
         distanceButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(distanceFlag == true) {
+                if (distanceFlag == true) {
                     upDistanceButton.setVisibility(View.VISIBLE);
                     downDistanceButton.setVisibility(View.VISIBLE);
                     distanceFlag = false;
-                }
-                else {
+                } else {
                     upDistanceButton.setVisibility(View.INVISIBLE);
                     downDistanceButton.setVisibility(View.INVISIBLE);
                     distanceFlag = true;
@@ -826,7 +793,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onClick(View v) {
                 // 제한 조건 필요할 듯
                 ABDistance = ABDistance + 10;
-                distanceText = ABDistance + "m AB거리";
+                distanceText = ABDistance + "m\nAB거리";
                 distanceButton.setText(distanceText);
             }
         });
@@ -834,32 +801,30 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         downDistanceButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(ABDistance > 10) {
+                if (ABDistance > 10) {
                     ABDistance = ABDistance - 10;
-                    distanceText = ABDistance + "m AB거리";
+                    distanceText = ABDistance + "m\nAB거리";
                     distanceButton.setText(distanceText);
                 }
             }
         });
-
 
         // 비행 폭 선택
         widthButton = (Button) findViewById(R.id.flightWidthButton);
         upWidthButton = (Button) findViewById(R.id.upWidthButton);
         downWidthButton = (Button) findViewById(R.id.downWidthButton);
 
-        widthText = flightWidth + "m 비행폭";
+        widthText = flightWidth + "m\n비행폭";
         widthButton.setText(widthText);
 
         widthButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(widthFlag == true) {
+                if (widthFlag == true) {
                     upWidthButton.setVisibility(View.VISIBLE);
                     downWidthButton.setVisibility(View.VISIBLE);
                     widthFlag = false;
-                }
-                else {
+                } else {
                     upWidthButton.setVisibility(View.INVISIBLE);
                     downWidthButton.setVisibility(View.INVISIBLE);
                     widthFlag = true;
@@ -870,9 +835,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         upWidthButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(flightWidth < 10) {
+                if (flightWidth < 10) {
                     flightWidth = flightWidth + 0.5;
-                    widthText = flightWidth + "m 비행폭";
+                    widthText = flightWidth + "m\n비행폭";
                     widthButton.setText(widthText);
                 }
             }
@@ -881,9 +846,9 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         downWidthButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(flightWidth > 1) {
+                if (flightWidth > 1) {
                     flightWidth = flightWidth - 0.5;
-                    widthText = flightWidth + "m 비행폭";
+                    widthText = flightWidth + "m\n비행폭";
                     widthButton.setText(widthText);
                 }
             }
@@ -892,22 +857,19 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         // 미션 유형 선택
         missionButton = (Button) findViewById(R.id.missionButton);
         missionABButton = (Button) findViewById(R.id.missionABButton);
-        missionPolygonButton = (Button) findViewById(R.id.missionPolygonButton);
         missionCancelButton = (Button) findViewById(R.id.missionCancelButton);
         missionStartButton = (Button) findViewById(R.id.missionStartButton);
+        returnButton = (Button) findViewById(R.id.returnButton);
 
         missionButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(missionTypeFlag == true) {
+                if (missionTypeFlag == true) {
                     missionABButton.setVisibility(View.VISIBLE);
-                    missionPolygonButton.setVisibility(View.VISIBLE);
                     missionCancelButton.setVisibility(View.VISIBLE);
                     missionTypeFlag = false;
-                }
-                else {
+                } else {
                     missionABButton.setVisibility(View.INVISIBLE);
-                    missionPolygonButton.setVisibility(View.INVISIBLE);
                     missionCancelButton.setVisibility(View.INVISIBLE);
                     missionTypeFlag = true;
                 }
@@ -921,16 +883,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 flagAB = true;
                 flagPolygon = false;
                 missionStartButton.setVisibility(View.VISIBLE);
+                returnButton.setVisibility(View.VISIBLE);
             }
-        });
-
-        missionPolygonButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                flagAB = false;
-                flagPolygon = true;
-                missionButton.setText("다각형");
-           }
         });
 
         missionCancelButton.setOnClickListener(new View.OnClickListener() {
@@ -940,6 +894,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 flagAB = false;
                 flagPolygon = false;
                 missionStartButton.setVisibility(View.INVISIBLE);
+                returnButton.setVisibility(View.INVISIBLE);
             }
         });
 
@@ -947,8 +902,8 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         mNaverMap.setOnMapClickListener(new NaverMap.OnMapClickListener() {
             @Override
             public void onMapClick(@NonNull @NotNull PointF pointF, @NonNull @NotNull LatLng latLng) {
-                if(flagAB == true) {
-                    if(countA == 0) {
+                if (flagAB == true) {
+                    if (countA == 0) {
                         missionArr.add(latLng);
                         iconA.setPosition(latLng);
                         iconA.setIcon(OverlayImage.fromResource(R.drawable.icon_a));
@@ -973,616 +928,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                         // test 이 밑부터는 버튼을 클릭할 시 작동하는 방법으로 가야됨
                         missionLineSetting();
                     }
-                } else if(flagPolygon == true) {
-                    polygonMarker.add(markerCount, new Marker());
-                    polygonMarker.get(markerCount).setPosition(latLng);
-                    polygonMarker.get(markerCount).setMap(mNaverMap);
-
-                    polygonLatLng.add(markerCount, latLng);
-
-
-                    polygon.setMap(null);
-                    if(markerCount >= 2){
-                        // 폴리곤 그리기 <- 20개 이상 찍을 때 생기는 버그 수정 필요
-                        MathUtils mathUtils = new MathUtils();
-
-                        double pivotDegree = 360.0;
-                        double pivotDistance = 100000000.0;
-                        int compareCount = 0;
-                        int realPolygonCount = 0;
-                        int compareDegreeCount = 0;
-                        // 추가
-                        double detectDistance = 0.0;
-                        double detectPivotDistance = 0.0;
-                        int mDetectionA = 0, mDetectionB = 0;
-                        double longestDistanceDegree = 0.0;
-                        int crossCount = 0;
-                        int  innerCount = 0;
-                        ArrayList<LatLng> boundLeftLine = new ArrayList<>();
-                        ArrayList<LatLng> boundRightLine = new ArrayList<>();
-
-                        boundLeftLine.clear();
-                        boundRightLine.clear();
-
-                        // test line
-                        // 폴리곤 정렬은 아무 문제 없이 진행됨
-                        ArrayList<LatLng> testLatLng1 = new ArrayList<>();
-                        ArrayList<Double> testDegree = new ArrayList<>();
-                        LatLngBounds testBounds = new LatLngBounds.Builder().include(polygonLatLng).build();
-                        LatLng testCenter = testBounds.getCenter();
-
-
-                        for(int i = 0; i < polygonLatLng.size(); i++) {
-                            testDegree.add(i, mathUtils.getHeadingFromCoordinates(new LatLong(testCenter.latitude, testCenter.longitude),
-                                    new LatLong(polygonLatLng.get(i).latitude, polygonLatLng.get(i).longitude)));
-                            testLatLng1.add(i, polygonLatLng.get(i));
-                        }
-
-                        for(int i = 0; i < polygonLatLng.size() -1; i++) {
-                            for(int j = i+1; j < polygonLatLng.size(); j++) {
-                                if(testDegree.get(i) > testDegree.get(j)) {
-                                    Collections.swap(testLatLng1, i, j);
-                                    Collections.swap(testDegree, i, j);
-                                }
-                            }
-                        }
-
-                        // 경계 크기 늘리기
-                        double boundDistance = 0.0, widthDistacne = 0.0, heightDistane = 0.0;
-                        widthDistacne = mathUtils.getDistance2D(new LatLong(testBounds.getNorthWest().latitude, testBounds.getNorthWest().longitude), new LatLong(testBounds.getNorthEast().latitude, testBounds.getNorthEast().longitude));
-                        heightDistane = mathUtils.getDistance2D(new LatLong(testBounds.getSouthWest().latitude, testBounds.getSouthWest().longitude), new LatLong(testBounds.getNorthWest().latitude, testBounds.getNorthWest().longitude));
-                        if(widthDistacne >= heightDistane) {
-                            boundDistance = widthDistacne;
-                        } else {
-                            boundDistance = heightDistane;
-                        }
-
-                        testBounds = testBounds.buffer(boundDistance*4);
-
-                        // 가장 긴 변의 길이를 구하고 각의 크기 구하기
-                        double longDegree = 0.0, longDistance = 0.0, checkedDistance = 0.0;
-                        int firstIndex = testLatLng1.size()-1, secondIndex = 0;
-
-                        longDistance = mathUtils.getDistance2D(new LatLong(testLatLng1.get(testLatLng1.size()-1).latitude, testLatLng1.get(testLatLng1.size()-1).longitude),
-                                new LatLong(testLatLng1.get(0).latitude, testLatLng1.get(0).longitude));
-                        longDegree = mathUtils.getHeadingFromCoordinates(new LatLong(testLatLng1.get(testLatLng1.size()-1).latitude, testLatLng1.get(testLatLng1.size()-1).longitude),
-                                new LatLong(testLatLng1.get(0).latitude, testLatLng1.get(0).longitude));
-                        for(int i = 0; i < testLatLng1.size() -1; i++) {
-                            checkedDistance = mathUtils.getDistance2D(new LatLong(testLatLng1.get(i).latitude, testLatLng1.get(i).longitude),
-                                    new LatLong(testLatLng1.get(i+1).latitude, testLatLng1.get(i+1).longitude));
-                            if(longDistance < checkedDistance) {
-                                longDistance = checkedDistance;
-                                firstIndex = i;
-                                secondIndex = i+1;
-                                longDegree = mathUtils.getHeadingFromCoordinates(new LatLong(testLatLng1.get(i).latitude, testLatLng1.get(i).longitude),
-                                        new LatLong(testLatLng1.get(i+1).latitude, testLatLng1.get(i+1).longitude));
-                            }
-                        }
-
-                        // test code 1 회전 변환
-
-                        // 각도가 180보다 작을 때
-
-                        ArrayList<LatLng> testInnerLine = new ArrayList<>();
-                        testInnerLine.clear();
-
-
-                        LatLng center = testBounds.getCenter();
-
-                        double testBoundWidth = 0.0, testBoundLength = 0.0;
-                        testBoundWidth = mathUtils.getDistance2D(new LatLong(testBounds.getNorthWest().latitude,testBounds.getNorthWest().longitude),
-                                new LatLong(testBounds.getNorthEast().latitude, testBounds.getNorthEast().longitude));
-                        testBoundLength = mathUtils.getDistance2D(new LatLong(testBounds.getNorthWest().latitude, testBounds.getNorthWest().longitude),
-                                new LatLong(testBounds.getSouthWest().latitude, testBounds.getSouthWest().longitude));
-                        int testInnerCount = 0;
-                        LatLong testLatLong;
-
-                        if(longDegree < 180) {
-                            testInnerLine.add(testInnerCount, testBounds.getNorthWest());
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
-                                    longDegree, testBoundWidth);
-
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
-                                            new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude)) + 90, testBoundLength);
-
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                            new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                        } else if(longDegree >= 180 && longDegree < 270) {
-
-                            // 180 ~ 270도의 경우와 270~360도의 경우 좌표 값 바꾸기
-                            testInnerLine.add(testInnerCount, testBounds.getNorthWest());
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
-                                    longDegree + 180 , testBoundWidth);
-
-                            testMarker.setPosition(testBounds.getNorthWest());
-                            testMarker.setMap(mNaverMap);
-
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
-                                            new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude)) + 90, testBoundLength);
-
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                            new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
-                            testInnerLine.add(innerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            Collections.swap(testInnerLine, 0, 3);
-                            Collections.swap(testInnerLine, 1, 2);
-                        } else if(longDegree >= 270 && longDegree < 360) {
-
-                            testInnerLine.add(testInnerCount, testBounds.getSouthWest());
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
-                                    longDegree, testBoundWidth);
-
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(0).latitude, testInnerLine.get(0).longitude),
-                                            new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude)) + 90, testBoundLength);
-
-                            testInnerLine.add(testInnerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                            new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude)) + 90, testBoundWidth);
-                            testInnerLine.add(innerCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                            testInnerCount++;
-                            Collections.swap(testInnerLine, 0, 3);
-                            Collections.swap(testInnerLine, 1, 2);
-                        }
-
-
-                        testPoly.setMap(null);
-                        testPoly.setCoords(testInnerLine);
-                        testPoly.setColor(Color.WHITE);
-                        testPoly.setMap(mNaverMap);
-
-                        // test code 2 비행폭만큼 경계 사각형 나누기
-
-
-                        double testLengthDegree = 0.0;
-                        int testLineCount = 0;
-                        ArrayList<LatLng> testBoundLeftLine = new ArrayList<>();
-                        ArrayList<LatLng> testBoundRightLine = new ArrayList<>();
-                        testBoundLeftLine.clear();
-                        testBoundRightLine.clear();
-
-                        testLengthDegree = mathUtils.getHeadingFromCoordinates(new LatLong(testInnerLine.get(1).latitude, testInnerLine.get(1).longitude),
-                                new LatLong(testInnerLine.get(2).latitude, testInnerLine.get(2).longitude));
-
-                        for(int i = 0;i <= testBoundLength; i+= flightWidth) {
-                            if(i == 0) {
-                                testBoundLeftLine.add(testLineCount, testInnerLine.get(0));
-                                testBoundRightLine.add(testLineCount, testInnerLine.get(1));
-                                testLineCount++;
-                            } else {
-                                testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testBoundLeftLine.get(testLineCount-1).latitude, testBoundLeftLine.get(testLineCount-1).longitude),
-                                        testLengthDegree, flightWidth);
-                                testBoundLeftLine.add(testLineCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                                testLatLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(testBoundRightLine.get(testLineCount-1).latitude, testBoundRightLine.get(testLineCount-1).longitude),
-                                        testLengthDegree, flightWidth);
-                                testBoundRightLine.add(testLineCount, new LatLng(testLatLong.getLatitude(), testLatLong.getLongitude()));
-                                testLineCount++;
-                            }
-                        }
-
-
-                        // test code 3
-
-
-
-                        testPolygonPolyline.clear();
-                        double tx = 0.0, ty = 0.0, t = 0.0;
-                        int testPolylineCount = 0;
-                        for(int i = 0; i < testLineCount; i++) {
-                            for (int j = 0; j < testLatLng1.size() - 1; j++) {
-
-                                tx = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(j).latitude - testLatLng1.get(j+1).latitude)) -
-                                        ( (testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*((testLatLng1.get(j).latitude*testLatLng1.get(j+1).longitude) - (testLatLng1.get(j).longitude*testLatLng1.get(j+1).latitude)));
-                                ty = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(j).longitude - testLatLng1.get(j+1).longitude) )-
-                                        ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*((testLatLng1.get(j).latitude*testLatLng1.get(j+1).longitude) - (testLatLng1.get(j).longitude*testLatLng1.get(j+1).latitude)));
-                                t = (((testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*(testLatLng1.get(j).longitude - testLatLng1.get(j+1).longitude))) -
-                                        ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*(testLatLng1.get(j).latitude-testLatLng1.get(j+1).latitude));
-
-                                if(t == 0) ;
-                                else {
-                                    tx = tx / t;
-                                    ty = ty / t;
-                                    if(testLatLng1.get(j).latitude > testLatLng1.get(j+1).latitude) {
-                                        if(testLatLng1.get(j+1).latitude <= tx && testLatLng1.get(j).latitude >= tx) {
-                                            if (testLatLng1.get(j).longitude > testLatLng1.get(j + 1).longitude) {
-                                                if (testLatLng1.get(j + 1).longitude <= ty && testLatLng1.get(j).longitude >= ty) {
-                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                    testPolylineCount++;
-                                                    // test log
-                                                    Log.d("test_error", String.format("%f", tx));
-                                                    Log.d("test_error", String.format("%f", ty));
-                                                }
-                                            } else if (testLatLng1.get(j).longitude < testLatLng1.get(j + 1).longitude) {
-                                                if (testLatLng1.get(j).longitude <= ty && testLatLng1.get(j + 1).longitude >= ty) {
-                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                    testPolylineCount++;
-                                                    // test log
-                                                    Log.d("test_error", String.format("%f", tx));
-                                                    Log.d("test_error", String.format("%f", ty));
-                                                }
-                                            }
-                                        }
-                                    } else if (testLatLng1.get(j).latitude < testLatLng1.get(j+1).latitude) {
-                                        if(testLatLng1.get(j).latitude <= tx && testLatLng1.get(j+1).latitude >= tx) {
-                                            if (testLatLng1.get(j).longitude > testLatLng1.get(j + 1).longitude) {
-                                                if (testLatLng1.get(j + 1).longitude <= ty && testLatLng1.get(j).longitude >= ty) {
-                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                    testPolylineCount++;
-                                                    // test log
-                                                    Log.d("test_error", String.format("%f", tx));
-                                                    Log.d("test_error", String.format("%f", ty));
-                                                }
-                                            } else if (testLatLng1.get(j).longitude < testLatLng1.get(j + 1).longitude) {
-                                                if (testLatLng1.get(j).longitude <= ty && testLatLng1.get(j + 1).longitude >= ty) {
-                                                    testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                    testPolylineCount++;
-                                                    // test log
-                                                    Log.d("test_error", String.format("%f", tx));
-                                                    Log.d("test_error", String.format("%f", ty));
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                }
-
-
-                                if(j == testLatLng1.size() - 2) {
-                                    tx = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(testLatLng1.size() - 1).latitude - testLatLng1.get(0).latitude)) -
-                                            ( (testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*((testLatLng1.get(testLatLng1.size() - 1).latitude*testLatLng1.get(0).longitude) - (testLatLng1.get(testLatLng1.size() - 1).longitude*testLatLng1.get(0).latitude)));
-                                    ty = (((testBoundLeftLine.get(i).latitude*testBoundRightLine.get(i).longitude)-(testBoundLeftLine.get(i).longitude*testBoundRightLine.get(i).latitude))*(testLatLng1.get(testLatLng1.size() - 1).longitude - testLatLng1.get(0).longitude) )-
-                                            ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*((testLatLng1.get(testLatLng1.size() - 1).latitude*testLatLng1.get(0).longitude) - (testLatLng1.get(testLatLng1.size() - 1).longitude*testLatLng1.get(0).latitude)));
-                                    t = (((testBoundLeftLine.get(i).latitude - testBoundRightLine.get(i).latitude)*(testLatLng1.get(testLatLng1.size() - 1).longitude - testLatLng1.get(0).longitude))) -
-                                            ((testBoundLeftLine.get(i).longitude - testBoundRightLine.get(i).longitude)*(testLatLng1.get(testLatLng1.size() - 1).latitude-testLatLng1.get(0).latitude));
-
-                                    if(t == 0) ;
-                                    else {
-                                        tx = tx / t;
-                                        ty = ty / t;
-                                        if(testLatLng1.get(testLatLng1.size() - 1).latitude > testLatLng1.get(0).latitude) {
-                                            if(testLatLng1.get(0).latitude <= tx && testLatLng1.get(testLatLng1.size() - 1).latitude >= tx) {
-                                                if (testLatLng1.get(testLatLng1.size() - 1).longitude > testLatLng1.get(0).longitude) {
-                                                    if (testLatLng1.get(0).longitude <= ty && testLatLng1.get(testLatLng1.size() - 1).longitude >= ty) {
-                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                        testPolylineCount++;
-                                                        // test log
-                                                        Log.d("test_error", String.format("%f", tx));
-                                                        Log.d("test_error", String.format("%f", ty));
-                                                    }
-                                                } else if (testLatLng1.get(testLatLng1.size() - 1).longitude < testLatLng1.get(0).longitude) {
-                                                    if (testLatLng1.get(testLatLng1.size() - 1).longitude <= ty && testLatLng1.get(0).longitude >= ty) {
-                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                        testPolylineCount++;
-                                                        // test log
-                                                        Log.d("test_error", String.format("%f", tx));
-                                                        Log.d("test_error", String.format("%f", ty));
-                                                    }
-                                                }
-                                            }
-                                        } else if (testLatLng1.get(testLatLng1.size() - 1).latitude < testLatLng1.get(0).latitude) {
-                                            if(testLatLng1.get(testLatLng1.size() - 1).latitude <= tx && testLatLng1.get(0).latitude >= tx) {
-                                                if (testLatLng1.get(testLatLng1.size() - 1).longitude > testLatLng1.get(0).longitude) {
-                                                    if (testLatLng1.get(0).longitude <= ty && testLatLng1.get(testLatLng1.size() - 1).longitude >= ty) {
-                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                        testPolylineCount++;
-                                                        // test log
-                                                        Log.d("test_error", String.format("%f", tx));
-                                                        Log.d("test_error", String.format("%f", ty));
-                                                    }
-                                                } else if (testLatLng1.get(testLatLng1.size() - 1).longitude < testLatLng1.get(0).longitude) {
-                                                    if (testLatLng1.get(testLatLng1.size() - 1).longitude <= ty && testLatLng1.get(0).longitude >= ty) {
-                                                        testPolygonPolyline.add(testPolylineCount, new LatLng(tx, ty));
-                                                        testPolylineCount++;
-                                                        // test log
-                                                        Log.d("test_error", String.format("%f", tx));
-                                                        Log.d("test_error", String.format("%f", ty));
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                    }
-                                }
-                            }
-
-                        }
-
-
-                        for(int i = 0; i < testPolygonPolyline.size()-2; i+=2) {
-                            if(i % 4 == 2) {
-                                Collections.swap(testPolygonPolyline, i, i+1);
-                            }
-                        }
-
-
-                        Log.d("test_error", testPolygonPolyline.toString());
-                        innerPolyLine.setCoords(testPolygonPolyline);
-                        innerPolyLine.setColor(Color.YELLOW);
-                        innerPolyLine.setMap(mNaverMap);
-
-                        // test line
-
-                        realPolygonLatLng.clear();
-                        realPolygonLatLng.add(0, polygonLatLng.get(0));
-                        realPolygonCount++;
-                        for(int i = 0; i < polygonLatLng.size() - 1; i++) {
-                            for(int j = i+1; j < polygonLatLng.size(); j++) {
-                                compareDegree.add(compareDegreeCount, mathUtils.getHeadingFromCoordinates(new LatLong(polygonLatLng.get(i).latitude, polygonLatLng.get(i).longitude),
-                                        new LatLong(polygonLatLng.get(j).latitude, polygonLatLng.get(j).longitude)));
-                                compareDistance.add(compareDegreeCount, mathUtils.getDistance2D(new LatLong(polygonLatLng.get(i).latitude, polygonLatLng.get(i).longitude),
-                                        new LatLong(polygonLatLng.get(j).latitude, polygonLatLng.get(j).longitude)));
-                                compareDegreeCount++;
-
-                            }
-
-                            // 폴리곤 바꾸는 것 센터 구하고 센터를 중심으로 시계방향으로 그리게하기 <- 수정 필요
-                            for(int q = 0; q < compareDegree.size(); q++) {
-                                if(pivotDistance >= compareDistance.get(q)) {
-                                    pivotDistance = compareDistance.get(q);
-                                    compareCount = q;
-                                    if(pivotDegree >= compareDegree.get(q)) {
-                                        pivotDegree = compareDegree.get(q);
-                                        compareCount = q;
-
-                                    }
-                                }
-                                /*
-                                if(pivotDegree >= compareDegree.get(q)) {
-                                    pivotDegree = compareDegree.get(q);
-                                    compareCount = q;
-
-                                }
-                                */
-
-                            }
-
-                            if(i+1 != compareCount+1+i) {
-                            Collections.swap(polygonLatLng, i+1, compareCount+1+i);}
-                            realPolygonLatLng.add(realPolygonCount, polygonLatLng.get(i+1));
-                            realPolygonCount++;
-                            pivotDegree = 360.0;
-                            compareDegree.clear();
-                            compareDegreeCount = 0;
-                            compareDistance.clear();
-                            pivotDistance = 100000000.0;
-                        }
-
-
-                        polygon.setCoords(testLatLng1);
-                        polygon.setColor(0x00ffffff);
-                        polygon.setOutlineWidth(5);
-                        polygon.setOutlineColor(Color.BLUE);
-                        polygon.setMap(mNaverMap);
-
-
-
-//                        polygon.setCoords(realPolygonLatLng);
-//                        polygon.setColor(0x00ffffff);
-//                        polygon.setOutlineWidth(5);
-//                        polygon.setOutlineColor(Color.BLUE);
-//                        polygon.setMap(mNaverMap);
-
-                        // 폴리곤 안에 라인 그리기 필요
-                        // 폴리곤 초기화
-                        innerPolyLineLatLng.clear();
-
-
-                        // 밑의 코드는 가장 긴 변 찾기
-                        detectPivotDistance = mathUtils.getDistance2D(new LatLong(realPolygonLatLng.get(realPolygonLatLng.size()-1).latitude, realPolygonLatLng.get(realPolygonLatLng.size()-1).longitude),
-                                new LatLong(realPolygonLatLng.get(0).latitude, realPolygonLatLng.get(0).longitude));
-                        mDetectionA = 0;
-                        mDetectionB = realPolygonLatLng.size() - 1;
-                        for(int i = 0; i < realPolygonLatLng.size() - 1; i++) {
-
-                            detectDistance = mathUtils.getDistance2D(new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude),
-                                    new LatLong(realPolygonLatLng.get(i+1).latitude, realPolygonLatLng.get(i+1).longitude));
-
-                            if(detectDistance >= detectPivotDistance) {
-                                detectPivotDistance = detectDistance;
-                                mDetectionA = i;
-                                mDetectionB = i+1;
-                            }
-                        }
-
-
-                        LatLngBounds bounds = new LatLngBounds.Builder().include(realPolygonLatLng).build();
-
-                        double testDistance = 0.0;
-
-
-                        for(int i = 1; i < realPolygonLatLng.size(); i++) {
-                            if(testDistance <= mathUtils.getDistance2D(new LatLong(
-                                    realPolygonLatLng.get(0).latitude, realPolygonLatLng.get(0).longitude
-                            ), new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude))) {
-                                testDistance =  mathUtils.getDistance2D(new LatLong(
-                                        realPolygonLatLng.get(0).latitude, realPolygonLatLng.get(0).longitude
-                                ), new LatLong(realPolygonLatLng.get(i).latitude, realPolygonLatLng.get(i).longitude));
-                            }
-                        }
-
-                        bounds = bounds.buffer(testDistance);
-
-                        // 가장 긴 변의 각도 찾기
-                        longestDistanceDegree = mathUtils.getHeadingFromCoordinates(new LatLong(realPolygonLatLng.get(mDetectionA).latitude, realPolygonLatLng.get(mDetectionA).longitude),
-                                new LatLong(realPolygonLatLng.get(mDetectionB).latitude, realPolygonLatLng.get(mDetectionB).longitude));
-
-
-
-
-                        double boundWidth = 0.0, boundLength = 0.0;
-                        boundWidth = mathUtils.getDistance2D(new LatLong(bounds.getNorthWest().latitude,bounds.getNorthWest().longitude),
-                                new LatLong(bounds.getNorthEast().latitude, bounds.getNorthEast().longitude));
-                        boundLength = mathUtils.getDistance2D(new LatLong(bounds.getNorthWest().latitude, bounds.getNorthWest().longitude),
-                                new LatLong(bounds.getSouthWest().latitude, bounds.getSouthWest().longitude));
-
-                        LatLong testLatLng;
-                        // 각도가 180보다 작을 때
-                        if(longestDistanceDegree < 180) {
-                            innerPolyLineLatLng.add(innerCount, bounds.getNorthWest());
-                            innerCount++;
-                            testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(0).latitude, innerPolyLineLatLng.get(0).longitude),
-                                    longestDistanceDegree, boundWidth);
-
-                            innerPolyLineLatLng.add(innerCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                            innerCount++;
-                            testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(0).latitude, innerPolyLineLatLng.get(0).longitude),
-                                            new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude)) + 90, boundLength);
-
-                            innerPolyLineLatLng.add(innerCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                            innerCount++;
-                            testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(2).latitude, innerPolyLineLatLng.get(2).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude),
-                                            new LatLong(innerPolyLineLatLng.get(2).latitude, innerPolyLineLatLng.get(2).longitude)) + 90, boundWidth);
-                            innerPolyLineLatLng.add(innerCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                            innerCount++;
-                        } else if(longestDistanceDegree >= 180) {
-                            innerPolyLineLatLng.add(innerCount, bounds.getSouthWest());
-                            innerCount++;
-                            testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(0).latitude, innerPolyLineLatLng.get(0).longitude),
-                                    longestDistanceDegree, boundWidth);
-
-                            innerPolyLineLatLng.add(innerCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                            innerCount++;
-                            testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(0).latitude, innerPolyLineLatLng.get(0).longitude),
-                                            new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude)) + 90, boundLength);
-
-                            innerPolyLineLatLng.add(innerCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                            innerCount++;
-                            testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(innerPolyLineLatLng.get(2).latitude, innerPolyLineLatLng.get(2).longitude),
-                                    mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude),
-                                            new LatLong(innerPolyLineLatLng.get(2).latitude, innerPolyLineLatLng.get(2).longitude)) + 90, boundWidth);
-                            innerPolyLineLatLng.add(innerCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                            innerCount++;
-                            Collections.swap(innerPolyLineLatLng, 0, 3);
-                            Collections.swap(innerPolyLineLatLng, 1, 2);
-                        }
-
-                        double lengthDegree = 0.0;
-                        int lineCount = 0;
-                        lengthDegree = mathUtils.getHeadingFromCoordinates(new LatLong(innerPolyLineLatLng.get(1).latitude, innerPolyLineLatLng.get(1).longitude),
-                                new LatLong(innerPolyLineLatLng.get(2).latitude, innerPolyLineLatLng.get(2).longitude));
-                        for(int i = 0;i <= boundLength; i+= flightWidth) {
-                            if(i == 0) {
-                                boundLeftLine.add(lineCount, innerPolyLineLatLng.get(0));
-                                boundRightLine.add(lineCount, innerPolyLineLatLng.get(1));
-                                lineCount++;
-                            } else {
-                                testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(boundLeftLine.get(lineCount-1).latitude, boundLeftLine.get(lineCount-1).longitude),
-                                        lengthDegree, flightWidth);
-                                boundLeftLine.add(lineCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                                testLatLng = mathUtils.newCoordFromBearingAndDistance(new LatLong(boundRightLine.get(lineCount-1).latitude, boundRightLine.get(lineCount-1).longitude),
-                                        lengthDegree, flightWidth);
-                                boundRightLine.add(lineCount, new LatLng(testLatLng.getLatitude(), testLatLng.getLongitude()));
-                                lineCount++;
-                            }
-                        }
-
-
-
-
-                        // 교점 구하기
-                        ArrayList<LatLng> polygonPolyline = new ArrayList<>();
-                        polygonPolyline.clear();
-                        double px = 0.0, py = 0.0, p = 0.0;
-                        int polylineCount = 0;
-                        for(int i = 0; i < lineCount; i++) {
-                            for (int j = 0; j < realPolygonLatLng.size() - 1; j++) {
-                                px = (((boundLeftLine.get(i).latitude*boundRightLine.get(i).longitude)-(boundLeftLine.get(i).longitude*boundRightLine.get(i).latitude))*(realPolygonLatLng.get(j).latitude - realPolygonLatLng.get(j+1).latitude)) -
-                                        ( (boundLeftLine.get(i).latitude - boundRightLine.get(i).latitude)*((realPolygonLatLng.get(j).latitude*realPolygonLatLng.get(j+1).longitude) - (realPolygonLatLng.get(j).longitude*realPolygonLatLng.get(j+1).latitude)));
-                                py = (((boundLeftLine.get(i).latitude*boundRightLine.get(i).longitude)-(boundLeftLine.get(i).longitude*boundRightLine.get(i).latitude))*(realPolygonLatLng.get(j).longitude - realPolygonLatLng.get(j+1).longitude) )-
-                                        ((boundLeftLine.get(i).longitude - boundRightLine.get(i).longitude)*((realPolygonLatLng.get(j).latitude*realPolygonLatLng.get(j+1).longitude) - (realPolygonLatLng.get(j).longitude*realPolygonLatLng.get(j+1).latitude)));
-                                p = (((boundLeftLine.get(i).latitude - boundRightLine.get(i).latitude)*(realPolygonLatLng.get(j).longitude - realPolygonLatLng.get(j+1).longitude))) -
-                                        ((boundLeftLine.get(i).longitude - boundRightLine.get(i).longitude)*(realPolygonLatLng.get(j).latitude-realPolygonLatLng.get(j+1).latitude));
-
-                                if(p == 0) ;
-                                else {
-                                    px = px / p;
-                                    py = py / p;
-                                    if(realPolygonLatLng.get(j).latitude > realPolygonLatLng.get(j+1).latitude) {
-                                        if(realPolygonLatLng.get(j+1).latitude <= px && realPolygonLatLng.get(j).latitude >= px) {
-                                            if (realPolygonLatLng.get(j).longitude > realPolygonLatLng.get(j + 1).longitude) {
-                                                if (realPolygonLatLng.get(j + 1).longitude <= py && realPolygonLatLng.get(j).longitude >= py) {
-                                                    polygonPolyline.add(polylineCount, new LatLng(px, py));
-                                                    polylineCount++;
-                                                }
-                                            } else if (realPolygonLatLng.get(j).longitude < realPolygonLatLng.get(j + 1).longitude) {
-                                                if (realPolygonLatLng.get(j).longitude <= py && realPolygonLatLng.get(j + 1).longitude >= py) {
-                                                    polygonPolyline.add(polylineCount, new LatLng(px, py));
-                                                    polylineCount++;
-                                                }
-                                            }
-                                        }
-                                    } else if (realPolygonLatLng.get(j).latitude < realPolygonLatLng.get(j+1).latitude) {
-                                        if(realPolygonLatLng.get(j).latitude <= px && realPolygonLatLng.get(j+1).latitude >= px) {
-                                            if (realPolygonLatLng.get(j).longitude > realPolygonLatLng.get(j + 1).longitude) {
-                                                if (realPolygonLatLng.get(j + 1).longitude <= py && realPolygonLatLng.get(j).longitude >= py) {
-                                                    polygonPolyline.add(polylineCount, new LatLng(px, py));
-                                                    polylineCount++;
-                                                }
-                                            } else if (realPolygonLatLng.get(j).longitude < realPolygonLatLng.get(j + 1).longitude) {
-                                                if (realPolygonLatLng.get(j).longitude <= py && realPolygonLatLng.get(j + 1).longitude >= py) {
-                                                    polygonPolyline.add(polylineCount, new LatLng(px, py));
-                                                    polylineCount++;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                }
-                            }
-
-                        }
-
-
-
-                        // 지그재그 완료
-                        for(int i = 0; i < polygonPolyline.size()-2; i+=2) {
-                            if(i % 4 == 2) {
-                                Collections.swap(polygonPolyline, i, i+1);
-                            }
-                        }
-
-                        // 순서에 맞게 마커 나오도록 만들기, 단, 마커 안에 숫자는 계속 증가되도록 만들기
-                        // 그리고 드론 위치에 가까운 곳부터 시작하게 만들기
-
-//                        testPoly.setMap(null);
-//                        testPoly.setCoords(innerPolyLineLatLng);
-//                        testPoly.setColor(Color.WHITE);
-//                        testPoly.setMap(mNaverMap);
-
-
-                        // IllegalArgumentException 이거 나오는 것 수정 필요
-//                        innerPolyLine.setCoords(polygonPolyline);
-//                        innerPolyLine.setColor(Color.YELLOW);
-//                        innerPolyLine.setMap(mNaverMap);
-                        Log.d("test_comp", innerPolyLineLatLng.toString());
-
-                    }
-
-                    markerCount++;
                 }
             }
         });
@@ -1591,16 +936,13 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         mNaverMap.setOnMapLongClickListener(new NaverMap.OnMapLongClickListener() {
             @Override
             public void onMapLongClick(@NonNull @NotNull PointF pointF, @NonNull @NotNull LatLng latLng) {
-
-
                 guideLatLng = latLng;
 
                 State checkVehicleState = drone.getAttribute(AttributeType.STATE);
                 VehicleMode checkVehicleMode = checkVehicleState.getVehicleMode();
 
                 // 가이드 모드인 경우 위치만 변경해서 이동시킴
-                if(checkVehicleMode == VehicleMode.COPTER_GUIDED)
-                {
+                if (checkVehicleMode == VehicleMode.COPTER_GUIDED) {
                     guideMarker.setMap(null);
                     guideMarker.setIconTintColor(Color.YELLOW);
                     guideMarker.setPosition(guideLatLng);
@@ -1610,8 +952,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                     goToSelectedPlace();
 
-                }
-                else {
+                } else {
                     AlertDialog.Builder guidedDialog = new AlertDialog.Builder(MainActivity.this);
                     guidedDialog.setTitle(null);
                     guidedDialog.setMessage("현재고도를 유지하며 목표지점까지 기체가 이동합니다.");
@@ -1640,32 +981,28 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
 
                     guidedDialog.show();
                 }
-
             }
         });
 
     }
 
-
     // 버튼 클릭 시 텍스트 변경이 안되는 점 개션 필요
     public void missionButtonClick(View view) {
         missionStartButton = findViewById(R.id.missionStartButton);
-        if(flagAB == true) {
+        if (flagAB == true) {
             if (missionCount == 0) {
                 missionStartButton.setText("임무설정");
                 missionCount++;
                 missionLineSetting();
 
-            }
-            else if(missionCount == 1) {
+            } else if (missionCount == 1) {
                 missionStartButton.setText("임무시작");
                 missionCount++;
                 missionStartSetting();
-            }
-            else if(missionCount == 2) {
+            } else if (missionCount == 2) {
                 missionStartButton.setText("임무종료");
                 missionPauseSetting();
-           }
+            }
         }
     }
 
@@ -1673,7 +1010,7 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         mission = new Mission();
         Altitude droneAltitude = this.drone.getAttribute(AttributeType.ALTITUDE);
 
-        for(int i = 0; i < missionArr.size(); i++) {
+        for (int i = 0; i < missionArr.size(); i++) {
             Waypoint waypoint = new Waypoint();
             waypoint.setCoordinate(new LatLongAlt(missionArr.get(i).latitude, missionArr.get(i).longitude, droneAltitude.getAltitude()));
             waypoint.setDelay(1);
@@ -1729,64 +1066,130 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     public void getNextCoords() {
         MathUtils mathUtils = new MathUtils();
 
-        int missionCount = (int)(ABDistance / flightWidth) * 2 + 2;
-
+        int missionCount = (int) (ABDistance / flightWidth) * 2 + 2;
         double lineDistance = mathUtils.getDistance2D(new LatLong(missionArr.get(0).latitude, missionArr.get(0).longitude), new LatLong(missionArr.get(1).latitude, missionArr.get(1).longitude));
 
-        for(int i = 2; i < missionCount; i++) {
-            if( i % 4 == 2 || i % 4 == 3) {
-                if( i % 4 == 2) {
-                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
-                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
-                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) + 90, flightWidth);
+        for (int i = 2; i < missionCount; i++) {
+            if (i % 4 == 2 || i % 4 == 3) {
+                if (i % 4 == 2) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i - 2).latitude, missionArr.get(i - 2).longitude),
+                                    new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude)) + 90, flightWidth);
                     missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
-                } else if ( i % 4 == 3) {
-                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
-                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
-                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) + 90, lineDistance);
-                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
-                }
-                // + 90
-            } else if( i % 4 == 0 || i % 4 == 1) {
-                if( i % 4 == 0) {
-                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
-                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
-                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) - 90, flightWidth);
-                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
-                } else if(i % 4 == 1) {
-                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude),
-                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i-2).latitude, missionArr.get(i-2).longitude),
-                                    new LatLong(missionArr.get(i-1).latitude, missionArr.get(i-1).longitude)) - 90, lineDistance);
+                } else if (i % 4 == 3) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i - 2).latitude, missionArr.get(i - 2).longitude),
+                                    new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude)) + 90, lineDistance);
                     missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
                 }
-                // -90
+            } else if (i % 4 == 0 || i % 4 == 1) {
+                if (i % 4 == 0) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i - 2).latitude, missionArr.get(i - 2).longitude),
+                                    new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude)) - 90, flightWidth);
+                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                } else if (i % 4 == 1) {
+                    LatLong latLong = mathUtils.newCoordFromBearingAndDistance(new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude),
+                            mathUtils.getHeadingFromCoordinates(new LatLong(missionArr.get(i - 2).latitude, missionArr.get(i - 2).longitude),
+                                    new LatLong(missionArr.get(i - 1).latitude, missionArr.get(i - 1).longitude)) - 90, lineDistance);
+                    missionArr.add(i, new LatLng(latLong.getLatitude(), latLong.getLongitude()));
+                }
             }
         }
     }
 
-
     // 롱클릭된 좌표로 드론 이동시키기
     private void goToSelectedPlace() {
 
-        ControlApi.getApi(this.drone).goTo(new LatLong(guideMarker.getPosition().latitude, guideMarker.getPosition().longitude),
-                true, new AbstractCommandListener() {
-                    @Override
-                    public void onSuccess() {
-                        alertUser("목적지로 이동합니다.");
-                        guideCount++;
-                    }
+        ControlApi.getApi(this.drone).goTo(new LatLong(guideMarker.getPosition().latitude, guideMarker.getPosition().longitude), true, new AbstractCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("목적지로 이동합니다.");
+                guideCount++;
+            }
 
-                    @Override
-                    public void onError(int executionError) {
-                        alertUser("목적지로 이동할 수 없습니다.");
-                    }
+            @Override
+            public void onError(int executionError) {
+                alertUser("목적지로 이동할 수 없습니다.");
+            }
 
-                    @Override
-                    public void onTimeout() {
-                        alertUser("시간이 초과되어 취소합니다.");
-                    }
-                });
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
 
+    // 리턴 버튼 관련 메소드
+    public void guidedHomeBtn(View view) {
+        State checkVehicleState = drone.getAttribute(AttributeType.STATE);
+        VehicleMode checkVehicleMode = checkVehicleState.getVehicleMode();
+
+        if (checkVehicleMode == VehicleMode.COPTER_GUIDED) {
+            homeMarker.setMap(null);
+            homeMarker.setIconTintColor(Color.YELLOW);
+            homeMarker.setPosition(homePositionN);
+            homeMarker.setWidth(30);
+            homeMarker.setHeight(30);
+            homeMarker.setMap(mNaverMap);
+            goHomePoint();
+
+        } else {
+            AlertDialog.Builder guidedDialog = new AlertDialog.Builder(MainActivity.this);
+            guidedDialog.setTitle(null);
+            guidedDialog.setMessage("현재고도를 유지하며 목표지점까지 기체가 이동합니다.");
+            guidedDialog.setPositiveButton("확인", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    homeMarker.setMap(null);
+                    homeMarker.setIconTintColor(Color.YELLOW);
+                    homeMarker.setPosition(homePositionN);
+                    homeMarker.setWidth(30);
+                    homeMarker.setHeight(30);
+                    homeMarker.setMap(mNaverMap);
+
+                    changeToGuided();
+                    goHomePoint();
+                }
+            });
+            guidedDialog.setNegativeButton("취소", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.cancel();
+                }
+            });
+            guidedDialog.show();
+        }
+    }
+
+
+    //홈포지션으로 드론 이동
+    private void goHomePoint() {
+        ControlApi.getApi(this.drone).goTo(homePositionG, true, new AbstractCommandListener() {
+            @Override
+            public void onSuccess() {
+                alertUser("목적지로 이동합니다.");
+                checkReturnHome = true;
+            }
+
+            @Override
+            public void onError(int executionError) {
+                alertUser("목적지로 이동할 수 없습니다.");
+            }
+
+            @Override
+            public void onTimeout() {
+                alertUser("시간이 초과되어 취소합니다.");
+            }
+        });
+    }
+
+    //홈포지션에 도착했는지 확인
+    public boolean checkBackHome() {
+        Gps droneGps = this.drone.getAttribute(AttributeType.GPS);
+        LatLong vehiclePosition = droneGps.getPosition();
+        LatLng vehicleLatLng = new LatLng(vehiclePosition.getLatitude(), vehiclePosition.getLongitude());
+        return homePositionN.distanceTo(vehicleLatLng) <= 1;
     }
 
     // 가이드 모드로 변경하기
@@ -1796,10 +1199,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("가이드 모드로 변경합니다.");
             }
+
             @Override
             public void onError(int executionError) {
                 alertUser("모드 변경을 할 수 없습니다.");
             }
+
             @Override
             public void onTimeout() {
                 alertUser("시간이 초과되어 취소합니다.");
@@ -1814,10 +1219,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("로이터 모드로 변경합니다.");
             }
+
             @Override
             public void onError(int executionError) {
                 alertUser("모드 변경을 할 수 없습니다.");
             }
+
             @Override
             public void onTimeout() {
                 alertUser("시간이 초과되어 취소합니다.");
@@ -1832,16 +1239,19 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("수동 모드로 변경합니다.");
             }
+
             @Override
             public void onError(int executionError) {
                 alertUser("모드 변경을 할 수 없습니다.");
             }
+
             @Override
             public void onTimeout() {
                 alertUser("시간이 초과되어 취소합니다.");
             }
         });
     }
+
     // alt-hold mode
     private void changeToAltHold() {
         VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_ALT_HOLD, new SimpleCommandListener() {
@@ -1849,16 +1259,19 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("alt-hold 모드로 변경합니다.");
             }
+
             @Override
             public void onError(int executionError) {
                 alertUser("모드 변경을 할 수 없습니다.");
             }
+
             @Override
             public void onTimeout() {
                 alertUser("시간이 초과되어 취소합니다.");
             }
         });
     }
+
     // auto mode
     private void changeToAuto() {
         VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_AUTO, new SimpleCommandListener() {
@@ -1866,16 +1279,19 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("auto 모드로 변경합니다.");
             }
+
             @Override
             public void onError(int executionError) {
                 alertUser("모드 변경을 할 수 없습니다.");
             }
+
             @Override
             public void onTimeout() {
                 alertUser("시간이 초과되어 취소합니다.");
             }
         });
     }
+
     // land mode
     private void changeToLand() {
         VehicleApi.getApi(this.drone).setVehicleMode(VehicleMode.COPTER_LAND, new SimpleCommandListener() {
@@ -1883,10 +1299,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             public void onSuccess() {
                 alertUser("착륙 모드로 변경합니다.");
             }
+
             @Override
             public void onError(int executionError) {
                 alertUser("모드 변경을 할 수 없습니다.");
             }
+
             @Override
             public void onTimeout() {
                 alertUser("시간이 초과되어 취소합니다.");
@@ -1894,40 +1312,15 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         });
     }
 
-
-
     // 목적지 도착한 것인지 확인하기
     private boolean checkGoal() {
-      //  GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
-      //  LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(), guidedState.getCoordinate().getLongitude());
+        //  GuidedState guidedState = drone.getAttribute(AttributeType.GUIDED_STATE);
+        //  LatLng target = new LatLng(guidedState.getCoordinate().getLatitude(), guidedState.getCoordinate().getLongitude());
         Gps dronePosition = this.drone.getAttribute(AttributeType.GPS);
         LatLong position = dronePosition.getPosition();
-        LatLng coords =  new LatLng(position.getLatitude(), position.getLongitude());
-        Log.d("test_target1", String.format("가이드 카운트 : %d", guideCount));
-        Log.d("test_target", String.format("위도 : %f 경도 : %f", coords.latitude, coords.longitude));
+        LatLng coords = new LatLng(position.getLatitude(), position.getLongitude());
         return coords.distanceTo(guideLatLng) <= 1;
         // return target.distanceTo(guideLatLng) <= 1; // 확실하지 않음
-    }
-
-    // web test
-
-    // 버튼 뷰 문제 해결할 것
-
-    public void onWebTestButton(View view) {
-
-        // 모바일 핫스팟을 이용한 연결이 필요, 즉, 밑의 url을 변경해야함
-        String videoURL = "http://192.168.0.19:8081";
-        WebView mWebView;
-        mWebView = findViewById(R.id.webView);
-
-        if(webFlag == false) {
-            mWebView.setVisibility(View.VISIBLE);
-            mWebView.loadUrl(videoURL);
-            webFlag = true;
-        } else {
-            mWebView.setVisibility(View.INVISIBLE);
-            webFlag = false;
-        }
     }
 
     // 모터 가동 입력 시, 모터 가동 구현
@@ -1978,13 +1371,13 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
             armingDialog.setPositiveButton("확인", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                        Arming();
+                    Arming();
                 }
             });
             armingDialog.setNegativeButton("취소", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                        dialog.cancel();
+                    dialog.cancel();
                 }
             });
 
@@ -1993,45 +1386,46 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         }
     }
 
-
     public void takeOff() {
         ControlApi.getApi(this.drone).takeoff(droneAltitude, new AbstractCommandListener() {
 
-                @Override
-                public void onSuccess() {
-                    alertUser("Taking off...");
+            @Override
+            public void onSuccess() {
+                alertUser("Taking off...");
+            }
 
-                }
+            @Override
+            public void onError(int i) {
+                alertUser("Unable to take off.");
+            }
 
-                @Override
-                public void onError(int i) {
-                    alertUser("Unable to take off.");
-                }
-
-                @Override
-                public void onTimeout() {
-                    alertUser("Unable to take off.");
-                }
+            @Override
+            public void onTimeout() {
+                alertUser("Unable to take off.");
+            }
         });
     }
-
 
     // 시동 걸기
     public void Arming() {
         VehicleApi.getApi(this.drone).arm(true, false, new SimpleCommandListener() {
-                @Override
-                public void onError(int executionError) {
-                    alertUser("Unable to arm vehicle.");
-                }
 
-                @Override
-                public void onTimeout() {
-                    alertUser("Arming operation timed out.");
-                }
-            });
+            @Override
+            public void onSuccess() {
+                alertUser("Vehicle armed successfully.");
+            }
+
+            @Override
+            public void onError(int executionError) {
+                alertUser("Unable to arm vehicle.");
+            }
+
+            @Override
+            public void onTimeout() {
+                alertUser("Arming operation timed out.");
+            }
+        });
     }
-
-    // UI Update!
 
     // 모터 가동 버튼 구현
     protected void updateArmButton() {
@@ -2056,55 +1450,43 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         }
     }
 
-
     // 전압 확인
     protected void updateVoltage() {
         TextView voltageTextView = (TextView) findViewById(R.id.batteryValueTextView);
         Battery droneBattery = this.drone.getAttribute(AttributeType.BATTERY);
         voltageTextView.setText(String.format("%3.1f", droneBattery.getBatteryVoltage()) + "V");
-        Log.d("test_vol", String.format("%f", droneBattery.getBatteryVoltage()));
     }
 
-
     // 비행모드 확인
+    protected void updateVehicleModesForType(int droneType) {
+        List<VehicleMode> vehicleModes = VehicleMode.getVehicleModePerDroneType(droneType);
+        ArrayAdapter<VehicleMode> vehicleModeArrayAdapter = new ArrayAdapter<VehicleMode>(this, android.R.layout.simple_spinner_item, vehicleModes);
+        vehicleModeArrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        this.modeSelector.setAdapter(vehicleModeArrayAdapter);
+    }
+
     protected void updateVehicleMode() {
         TextView vehicleModeTextView = (TextView) findViewById(R.id.vehicleModeLabelWriteTextView);
         State vehicleState = this.drone.getAttribute(AttributeType.STATE);
         VehicleMode vehicleMode = vehicleState.getVehicleMode();
         //VehicleMode vehicleMode = this.drone.getAttribute(AttributeType.STATE);
 
-
-
-        if(vehicleMode == VehicleMode.COPTER_STABILIZE)
-        {
+        if (vehicleMode == VehicleMode.COPTER_STABILIZE) {
             vehicleModeTextView.setText("STABILIZE");
-        }
-        else if(vehicleMode == VehicleMode.COPTER_LAND)
-        {
+        } else if (vehicleMode == VehicleMode.COPTER_LAND) {
             vehicleModeTextView.setText("LAND");
-        }
-        else if(vehicleMode == VehicleMode.COPTER_LOITER)
-        {
+        } else if (vehicleMode == VehicleMode.COPTER_LOITER) {
             vehicleModeTextView.setText("LOITER");
-        }
-        else if(vehicleMode == vehicleMode.COPTER_GUIDED)
-        {
+        } else if (vehicleMode == vehicleMode.COPTER_GUIDED) {
             vehicleModeTextView.setText("GUIDED");
-        }
-        else if(vehicleMode == vehicleMode.COPTER_ALT_HOLD)
-        {
+        } else if (vehicleMode == vehicleMode.COPTER_ALT_HOLD) {
             vehicleModeTextView.setText("ALT-HOLD");
-        }
-        else if(vehicleMode == vehicleMode.COPTER_AUTO)
-        {
+        } else if (vehicleMode == vehicleMode.COPTER_AUTO) {
             vehicleModeTextView.setText("AUTO");
-        }
-        else{
+        } else {
             vehicleModeTextView.setText("UNKNOWN");
         }
-
     }
-
 
     // 고도 확인
     protected void updateAltitude() {
@@ -2121,15 +1503,12 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
     }
 
     // YAW 확인
-
     protected void updateYaw() {
         TextView yawTextView = (TextView) findViewById(R.id.yawValueTextView);
         Attitude attitude = this.drone.getAttribute(AttributeType.ATTITUDE);
-        if(attitude.getYaw() < 0)
-        {
+        if (attitude.getYaw() < 0) {
             yawTextView.setText(String.format("%3.1f", 360 + attitude.getYaw()) + "deg");
-        }
-        else {
+        } else {
             yawTextView.setText(String.format("%3.1f", attitude.getYaw()) + "deg");
         }
     }
@@ -2139,7 +1518,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         TextView gpsCountTextView = (TextView) findViewById(R.id.gpsCountValueTextView);
         Gps droneGps = this.drone.getAttribute(AttributeType.GPS);
         gpsCountTextView.setText(String.format("%d", droneGps.getSatellitesCount()));
-        Log.d("test_gps",String.format("%d", droneGps.getSatellitesCount()) );
     }
 
     // GPS 위치 표시 <- 위성이 잡혀야 표시가 됨
@@ -2148,42 +1526,35 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         LatLong position = dronePosition.getPosition();
         Attitude attitude = this.drone.getAttribute(AttributeType.ATTITUDE);
         double droneYaw = 0.0;
-        if(attitude.getYaw() < 0)
-        {
+        if (attitude.getYaw() < 0) {
             droneYaw = 360 + attitude.getYaw();
-        }
-        else {
+        } else {
             droneYaw = attitude.getYaw();
         }
 
-
-
-        if(count > 0)
-        {
+        if (count > 0) {
             droneMarker.setMap(null);
             lineMarker.setMap(null);
-
         }
 
         // 방향 표시선 그리기
         lineMarker.setIcon(OverlayImage.fromResource(R.drawable.green_dash_line));
         lineMarker.setPosition(new LatLng(position.getLatitude(), position.getLongitude()));
-        lineMarker.setAngle((float)droneYaw);
+        lineMarker.setAngle((float) droneYaw);
         lineMarker.setHeight(150);
         lineMarker.setMap(mNaverMap);
 
         // 드론 아이콘 그리기
-        droneMarker.setIcon(OverlayImage.fromResource(R.drawable.drone_icon)); // 지시 점선 넣을 필요가 있음
+        droneMarker.setIcon(OverlayImage.fromResource(R.drawable.drone_icon));
         droneMarker.setHeight(35);
         droneMarker.setWidth(35);
         droneMarker.setPosition(new LatLng(position.getLatitude(), position.getLongitude()));
-        droneMarker.setAngle((float)droneYaw);
+        droneMarker.setAngle((float) droneYaw);
         droneMarker.setMap(mNaverMap);
 
 
         // 비행경로 폴리라인 그리기
-
-        Collections.addAll(guideLatLngArr, new LatLng(position.getLatitude(), position.getLongitude())); // 기본 카운트를 이용해서 집어넣으니 시작점과 끝점이 연결되는 문제가 발생하여 조치함
+        Collections.addAll(guideLatLngArr, new LatLng(position.getLatitude(), position.getLongitude()));
         polyline.setCoords(guideLatLngArr);
         polyline.setWidth(5);
         polyline.setColor(Color.WHITE);
@@ -2192,9 +1563,10 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
         polyline.setMap(mNaverMap);
 
         count++;
-    }
 
-    // test
+        homePositionG = new LatLong(guideLatLngArr.get(0).latitude, guideLatLngArr.get(0).longitude);
+        homePositionN = guideLatLngArr.get(0);
+    }
 
     private ConnectionParameter retrieveConnectionParameters() {
         final @ConnectionType.Type int connectionType = mPrefs.getConnectionParameterType();
@@ -2253,7 +1625,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 connParams = null;
                 break;
         }
-
         return connParams;
     }
 
@@ -2267,7 +1638,6 @@ public class MainActivity extends AppCompatActivity implements DroneListener, To
                 return i;
             }
         }
-
         return idx;
     }
 }
